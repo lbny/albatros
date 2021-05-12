@@ -221,7 +221,7 @@ def main():
         raw_datasets = load_dataset(extension, data_files=data_files)
 
         if args.test_file is not None:
-            test_dataset = load_dataset(extension, data_files={'test': args.test_file})
+            test_dataset = load_dataset(extension, data_files={'test': args.test_file}  )
 
     # See more about loading any type of standard or custom dataset at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
@@ -323,7 +323,9 @@ def main():
 
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation_matched" if args.task_name == "mnli" else "validation"]
-    test_dataset = test_dataset["test"]
+    test_dataset = test_dataset.map(
+        preprocess_function, batched=True, remove_columns=raw_datasets["train"].column_names
+    )["test"]
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
