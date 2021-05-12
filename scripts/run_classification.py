@@ -584,7 +584,7 @@ def main():
             y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
             print(y_preds.shape)
             # in case batch size is 1
-            if len(y_preds) == 0:
+            if len(y_preds.size()) == 0:
                 y_preds = y_preds.view(1)
 
             if predictions is None:
@@ -605,7 +605,7 @@ def main():
             outputs = model(**batch)
             y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
             # in case batch size is 1
-            if len(y_preds) == 0:
+            if len(y_preds.size()) == 0:
                 y_preds = y_preds.view(1)
 
             if predictions is None:
