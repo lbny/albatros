@@ -133,6 +133,18 @@ def parse_args():
         help="Batch size (per device) for the evaluation dataloader.",
     )
     parser.add_argument(
+        "--per_device_test_batch_size",
+        type=int,
+        default=8,
+        help="Batch size (per device) for the test dataloader.",
+    )
+    parser.add_argument(
+        "--per_device_inference_batch_size",
+        type=int,
+        default=8,
+        help="Batch size (per device) for the inference dataloader.",
+    )
+    parser.add_argument(
         "--learning_rate",
         type=float,
         default=5e-5,
@@ -396,10 +408,10 @@ def main():
     eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
 
     if args.test_file:
-        test_dataloader = DataLoader(test_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
+        test_dataloader = DataLoader(test_dataset, collate_fn=data_collator, batch_size=args.per_device_test_batch_size)
 
     if args.inference_file:
-        inference_dataloader = DataLoader(inference_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
+        inference_dataloader = DataLoader(inference_dataset, collate_fn=data_collator, batch_size=args.per_device_inference_batch_size)
 
     # Optimizer
     # Split weights in two groups, one with weight decay and the other not.
@@ -564,7 +576,7 @@ def main():
         logger.info(f"mnli-mm: {eval_metric}")
 
     if args.test_file:
-
+        print('Infering on test file...')
         predictions = None
         for step, batch in enumerate(test_dataloader):
             outputs = model(**batch)
@@ -581,7 +593,7 @@ def main():
         )
 
     if args.inference_file:
-
+        print('Infering on inference file...')
         predictions = None
         for step, batch in enumerate(inference_dataloader):
             outputs = model(**batch)
@@ -591,6 +603,8 @@ def main():
                 predictions = y_preds
             else:
                 predictions = torch.cat([y_preds, predictions])
+
+            print(f'Inference step {step}')
 
             del outputs, y_preds
             gc.collect()
