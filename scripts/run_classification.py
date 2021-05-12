@@ -365,8 +365,8 @@ def main():
 
     # Prepare everything with our `accelerator`.
     if args.test_file:
-        model, optimizer, train_dataloader, eval_dataloader, test_loader = accelerator.prepare(
-            model, optimizer, train_dataloader, eval_dataloader, test_loader
+        model, optimizer, train_dataloader, eval_dataloader, test_dataloader = accelerator.prepare(
+            model, optimizer, train_dataloader, eval_dataloader, test_dataloader
         )
     else:
         model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
