@@ -212,6 +212,7 @@ def main():
         wandb.init(
             project=args.wandb_project,
             name=args.wandb_name,
+            entity='lbny1928',
             notes=args.wandb_notes,
             tags=args.wandb_tags,
             config=args
@@ -464,6 +465,7 @@ def main():
 
     for epoch in range(args.num_train_epochs):
         model.train()
+        train_loss = 0
         for step, batch in enumerate(train_dataloader):
             outputs = model(**batch)
             loss = outputs.loss
@@ -493,6 +495,15 @@ def main():
             if completed_steps >= args.max_train_steps:
                 break
 
+            train_loss += loss * len(batch)
+        
+        train_loss /= len(train_dataset)
+        train_loss = train_loss.sqrt()
+        print(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
+
+        if args.wandb_project:
+            wandb.log({'epoch': epoch, 'total_train_loss': train_loss})
+
         model.eval()
         eval_loss = 0
         for step, batch in enumerate(eval_dataloader):
@@ -504,7 +515,7 @@ def main():
             )
             loss = outputs.loss
             loss = loss / args.gradient_accumulation_steps
-            eval_loss += loss * batch.shape[0]
+            eval_loss += loss * len(batch)
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
                     print(f"Validation Loss at {step}: {loss.sqrt()}")
