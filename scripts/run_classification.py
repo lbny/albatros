@@ -18,6 +18,7 @@ import logging
 import math
 import os
 import os.path as osp
+import gc
 import random
 
 import numpy as np
@@ -539,6 +540,8 @@ def main():
         accelerator.wait_for_everyone()
         unwrapped_model = accelerator.unwrap_model(model)
         unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
+        del unwrapped_model
+        gc.collect()
 
     if args.task_name == "mnli":
         # Final evaluation on mismatched validation set
@@ -571,10 +574,11 @@ def main():
                 predictions = y_preds
             else:
                 predictions = torch.cat([y_preds, predictions])
-            np.save(
-                osp.join(args.output_dir, 'test_predictions.npy'),
-                predictions.detach().numpy()
-            )
+
+        np.save(
+            osp.join(args.output_dir, 'test_predictions.npy'),
+            predictions.detach().numpy()
+        )
 
     if args.inference_file:
 
@@ -587,10 +591,14 @@ def main():
                 predictions = y_preds
             else:
                 predictions = torch.cat([y_preds, predictions])
-            np.save(
-                osp.join(args.output_dir, 'inference_predictions.npy'),
-                predictions.detach().numpy()
-            )
+
+            del outputs, y_preds
+            gc.collect()
+
+        np.save(
+            osp.join(args.output_dir, 'inference_predictions.npy'),
+            predictions.detach().numpy()
+        )
 
 
 
