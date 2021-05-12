@@ -490,7 +490,7 @@ def main():
 
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
-                    print(f"Train Loss at {step}: {np.sqrt(np.mean(train_loss[:args.print_loss_every_steps]))}")
+                    print(f"Train Loss at {step}: {np.sqrt(np.mean(train_loss[-args.print_loss_every_steps:]))}")
 
             if args.wandb_project:
                 wandb.log({
@@ -533,8 +533,8 @@ def main():
                 eval_loss.append(loss.detach().numpy())
                 if args.print_loss_every_steps:
                     if step % args.print_loss_every_steps == 0:
-                        print(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[:args.print_loss_every_steps]))}")
-                del loss, outputs, batch, batch_labels
+                        print(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[-args.print_loss_every_steps:]))}")
+                del loss, outputs, batch
                 gc.collect()
 
             
