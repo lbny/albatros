@@ -539,6 +539,9 @@ def main():
                 if args.print_loss_every_steps:
                     if step % args.print_loss_every_steps == 0:
                         print(f"Validation Loss at {step}: {loss.sqrt()}")
+                del loss, outputs, batch
+                gc.collect()
+
             eval_loss /= len(eval_dataset)  
             eval_loss = np.sqrt(eval_loss)      
             print(f'Total Validation RMSE loss : {eval_loss}')
@@ -576,6 +579,8 @@ def main():
                     predictions=accelerator.gather(predictions),
                     references=accelerator.gather(batch["labels"]),
                 )
+                del outputs
+                gc.collect()
 
         eval_metric = metric.compute()
         logger.info(f"mnli-mm: {eval_metric}")
@@ -593,6 +598,9 @@ def main():
                     y_preds = y_preds.view(1)
 
                 predictions.append(y_preds.detach())
+                del outputs, y_preds
+                gc.collect()
+
             np.save(
                 osp.join(args.output_dir, 'test_predictions.npy'),
                 torch.cat(predictions).numpy()
