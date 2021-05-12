@@ -497,10 +497,13 @@ def main():
                     predictions
                 ])
 
+            np.save(
+                osp.join(args.output_dir, 'test_predictions.npy'),
+                predictions.numpy()
+            )
 
             metric.add_batch(
-                predictions=accelerator.gather(y_preds),
-                references=accelerator.gather(batch["labels"]),
+                predictions=accelerator.gather(y_preds)
             )
 
 
