@@ -482,7 +482,7 @@ def main():
 
     for epoch in range(args.num_train_epochs):
         model.train()
-        train_loss = 0
+        train_loss = []
         for step, batch in enumerate(train_dataloader):
             outputs = model(**batch)
             loss = outputs.loss
@@ -490,7 +490,7 @@ def main():
 
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
-                    print(f"Train Loss at {step}: {loss.sqrt()}")
+                    print(f"Train Loss at {step}: {np.sqrt(np.mean(train_loss[:args.print_loss_every_steps]))}")
 
             if args.wandb_project:
                 wandb.log({
@@ -512,19 +512,18 @@ def main():
             if completed_steps >= args.max_train_steps:
                 break
             
-            train_loss += loss.detach().numpy() * len(batch)
+            train_loss.append(loss.detach().numpy())
             del loss, outputs, batch
             gc.collect()
         
-        train_loss /= len(train_dataset)
-        train_loss = np.sqrt(train_loss)
+        train_loss = np.sqrt(np.mean(train_loss))
         print(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
 
         if args.wandb_project:
             wandb.log({'epoch': epoch, 'total_train_loss': train_loss})
 
         model.eval()
-        eval_loss = 0
+        eval_loss = []
         with torch.no_grad():
             for step, batch in enumerate(eval_dataloader):
                 outputs = model(**batch)
@@ -540,15 +539,15 @@ def main():
                 )
                 loss = outputs.loss
                 loss = loss / args.gradient_accumulation_steps
-                eval_loss += loss.detach().numpy() * len(batch)
+                eval_loss.append(loss.detach().numpy())
                 if args.print_loss_every_steps:
                     if step % args.print_loss_every_steps == 0:
-                        print(f"Validation Loss at {step}: {loss.sqrt()}")
+                        print(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[:args.print_loss_every_steps]))}")
                 del loss, outputs, batch, batch_labels
                 gc.collect()
 
-            eval_loss /= len(eval_dataset)  
-            eval_loss = np.sqrt(eval_loss)      
+            
+            eval_loss = np.sqrt(np.mean(eval_loss))    
             print(f'Total Validation RMSE loss : {eval_loss}')
 
             if args.wandb_project:
