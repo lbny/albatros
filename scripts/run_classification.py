@@ -425,7 +425,7 @@ def main():
 
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
-                    print(f"Loss at {step}: {loss}")
+                    print(f"Train Loss at {step}: {loss.sqrt()}")
 
             accelerator.backward(loss)
             if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
@@ -451,7 +451,7 @@ def main():
 
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
-                    print(f"Loss at {step}: {loss}")
+                    print(f"Validation Loss at {step}: {loss.sqrt()}")
 
         eval_metric = metric.compute()
         logger.info(f"epoch {epoch}: {eval_metric}")
@@ -503,10 +503,6 @@ def main():
             np.save(
                 osp.join(args.output_dir, 'test_predictions.npy'),
                 predictions.detach().numpy()
-            )
-
-            metric.add_batch(
-                predictions=accelerator.gather(y_preds)
             )
 
 
