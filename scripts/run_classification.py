@@ -586,7 +586,7 @@ def main():
             if predictions is None:
                 predictions = y_preds
             else:
-                predictions = torch.cat([y_preds, predictions])
+                predictions = torch.cat([predictions, y_preds])
 
         np.save(
             osp.join(args.output_dir, 'test_predictions.npy'),
@@ -604,7 +604,9 @@ def main():
             if predictions is None:
                 predictions = y_preds
             else:
-                predictions = torch.cat([y_preds, predictions])
+                predictions = torch.cat([predictions, y_preds])
+
+            print(predictions.shape)
 
             print(f'Inference step {step}')
 
