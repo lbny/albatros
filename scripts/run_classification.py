@@ -480,8 +480,8 @@ def main():
                     "epoch": epoch,
                     "step": step,
                     "train_rmse_loss": loss.sqrt(),
-                    "lr_0": optimizer.params_group[0]['lr'],
-                    "lr_1": optimizer.params_group[1]['lr']
+                    "lr_0": optimizer.param_groups[0]['lr'],
+                    "lr_1": optimizer.param_groups[1]['lr']
                 })
 
             accelerator.backward(loss)
