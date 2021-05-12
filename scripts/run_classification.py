@@ -17,7 +17,10 @@ import argparse
 import logging
 import math
 import os
+import os.path as osp
 import random
+
+import numpy as np
 
 import datasets
 from datasets import load_dataset, load_metric
