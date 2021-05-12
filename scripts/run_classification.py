@@ -21,6 +21,9 @@ import os.path as osp
 import random
 
 import numpy as np
+import torch
+
+import wandb
 
 import datasets
 from datasets import load_dataset, load_metric
@@ -78,6 +81,15 @@ def parse_args():
     )
     parser.add_argument(
         "--inference_file", type=str, default=None, help="A csv or a json file containing the inference data."
+    )
+    parser.add_argument(
+        "--wandb_project", type=str, default=None, help="Weights and Biases project."
+    )
+    parser.add_argument(
+        "--wandb_notes", type=str, default=None, help="Weights and Biases notes."
+    )
+    parser.add_argument(
+        "--wandb_tags", type=str, default=None, help="Weights and Biases tags."
     )
     parser.add_argument(
         "--max_length",
@@ -191,6 +203,15 @@ def main():
         level=logging.INFO,
     )
     logger.info(accelerator.state)
+
+    if args.wandb_project:
+
+        wandb.init(
+            project=args.wandb_project,
+            notes=args.wandb_notes,
+            tags=args.wandb_tags,
+            config=args
+        )
 
     # Setup logging, we only want one process per machine to log things on the screen.
     # accelerator.is_local_main_process is only True for one process per machine.
@@ -448,6 +469,15 @@ def main():
                 if step % args.print_loss_every_steps == 0:
                     print(f"Train Loss at {step}: {loss.sqrt()}")
 
+            if args.wandb_project:
+                wandb.log({
+                    "epoch": epoch,
+                    "step": step,
+                    "train_rmse_loss": loss.sqrt(),
+                    "lr_0": optimizer.params_group[0]['lr'],
+                    "lr_1": optimizer.params_group[1]['lr']
+                })
+
             accelerator.backward(loss)
             if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
                 optimizer.step()
@@ -460,6 +490,7 @@ def main():
                 break
 
         model.eval()
+        eval_loss = 0
         for step, batch in enumerate(eval_dataloader):
             outputs = model(**batch)
             predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
@@ -469,10 +500,18 @@ def main():
             )
             loss = outputs.loss
             loss = loss / args.gradient_accumulation_steps
-
+            eval_loss += loss * batch.shape[0]
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
                     print(f"Validation Loss at {step}: {loss.sqrt()}")
+        eval_loss /= len(eval_dataset)        
+        print(f'Total Validation RMSE loss : {eval_loss.sqrt()}')
+
+        if args.wandb_project:
+            wandb.log({
+                "epoch": epoch,
+                "validation_rmse_loss": eval_loss.sqrt()
+            })
 
         eval_metric = metric.compute()
         logger.info(f"epoch {epoch}: {eval_metric}")
