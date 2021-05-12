@@ -216,6 +216,8 @@ def main():
             data_files["train"] = args.train_file
         if args.validation_file is not None:
             data_files["validation"] = args.validation_file
+        if args.test_file is not None:
+            data_files["test"] = args.test_file
         extension = (args.train_file if args.train_file is not None else args.valid_file).split(".")[-1]
         raw_datasets = load_dataset(extension, data_files=data_files)
     # See more about loading any type of standard or custom dataset at
@@ -318,6 +320,7 @@ def main():
 
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation_matched" if args.task_name == "mnli" else "validation"]
+    test_dataset = processed_datasets["test"]
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
@@ -414,7 +417,7 @@ def main():
 
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
-                    logger.info(f"Loss at {step}: {loss}")
+                    logger.warning(f"Loss at {step}: {loss}")
 
             accelerator.backward(loss)
             if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
