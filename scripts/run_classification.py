@@ -511,8 +511,10 @@ def main():
 
             if completed_steps >= args.max_train_steps:
                 break
-
+            
             train_loss += loss.detach().numpy() * len(batch)
+            del loss, outputs, batch
+            gc.collect()
         
         train_loss /= len(train_dataset)
         train_loss = np.sqrt(train_loss)
