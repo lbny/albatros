@@ -502,7 +502,7 @@ def main():
 
             np.save(
                 osp.join(args.output_dir, 'test_predictions.npy'),
-                predictions.numpy()
+                predictions.detach().numpy()
             )
 
             metric.add_batch(
