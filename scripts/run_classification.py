@@ -564,13 +564,14 @@ def main():
         eval_dataloader = accelerator.prepare(eval_dataloader)
 
         model.eval()
-        for step, batch in enumerate(eval_dataloader):
-            outputs = model(**batch)
-            predictions = outputs.logits.argmax(dim=-1)
-            metric.add_batch(
-                predictions=accelerator.gather(predictions),
-                references=accelerator.gather(batch["labels"]),
-            )
+        with torch.no_grad():
+            for step, batch in enumerate(eval_dataloader):
+                outputs = model(**batch)
+                predictions = outputs.logits.argmax(dim=-1)
+                metric.add_batch(
+                    predictions=accelerator.gather(predictions),
+                    references=accelerator.gather(batch["labels"]),
+                )
 
         eval_metric = metric.compute()
         logger.info(f"mnli-mm: {eval_metric}")
@@ -579,42 +580,44 @@ def main():
         print('Infering on test file...')
         predictions = []
         model.eval()
-        for step, batch in enumerate(test_dataloader):
-            outputs = model(**batch)
-            y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
-            print(y_preds.shape)
-            # in case batch size is 1
-            if len(y_preds.size()) == 0:
-                y_preds = y_preds.view(1)
+        with torch.no_grad():
+            for step, batch in enumerate(test_dataloader):
+                outputs = model(**batch)
+                y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                print(y_preds.shape)
+                # in case batch size is 1
+                if len(y_preds.size()) == 0:
+                    y_preds = y_preds.view(1)
 
-            predictions.append(y_preds)
-        np.save(
-            osp.join(args.output_dir, 'test_predictions.npy'),
-            torch.cat(predictions).detach().numpy()
-        )
+                predictions.append(y_preds)
+            np.save(
+                osp.join(args.output_dir, 'test_predictions.npy'),
+                torch.cat(predictions).detach().numpy()
+            )
 
     if args.inference_file:
         print('Infering on inference file...')
         predictions = []
         model.eval()
-        for step, batch in enumerate(inference_dataloader):
-            outputs = model(**batch)
-            y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
-            # in case batch size is 1
-            if len(y_preds.size()) == 0:
-                y_preds = y_preds.view(1)
+        with torch.no_grad():
+            for step, batch in enumerate(inference_dataloader):
+                outputs = model(**batch)
+                y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                # in case batch size is 1
+                if len(y_preds.size()) == 0:
+                    y_preds = y_preds.view(1)
 
-            predictions.append(y_preds)
-            print(y_preds.shape)
-            print(f'Inference step {step}')
+                predictions.append(y_preds)
+                print(y_preds.shape)
+                print(f'Inference step {step}')
 
-            del outputs, y_preds
-            gc.collect()
+                del outputs, y_preds
+                gc.collect()
 
-        np.save(
-            osp.join(args.output_dir, 'inference_predictions.npy'),
-            torch.cat(predictions).detach().numpy()
-        )
+            np.save(
+                osp.join(args.output_dir, 'inference_predictions.npy'),
+                torch.cat(predictions).detach().numpy()
+            )
 
 
 
