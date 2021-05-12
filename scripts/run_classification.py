@@ -512,10 +512,10 @@ def main():
             if completed_steps >= args.max_train_steps:
                 break
 
-            train_loss += loss * len(batch)
+            train_loss += loss.detach().numpy() * len(batch)
         
         train_loss /= len(train_dataset)
-        train_loss = train_loss.sqrt()
+        train_loss = np.sqrt(train_loss)
         print(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
 
         if args.wandb_project:
@@ -523,27 +523,29 @@ def main():
 
         model.eval()
         eval_loss = 0
-        for step, batch in enumerate(eval_dataloader):
-            outputs = model(**batch)
-            predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
-            metric.add_batch(
-                predictions=accelerator.gather(predictions),
-                references=accelerator.gather(batch["labels"]),
-            )
-            loss = outputs.loss
-            loss = loss / args.gradient_accumulation_steps
-            eval_loss += loss * len(batch)
-            if args.print_loss_every_steps:
-                if step % args.print_loss_every_steps == 0:
-                    print(f"Validation Loss at {step}: {loss.sqrt()}")
-        eval_loss /= len(eval_dataset)        
-        print(f'Total Validation RMSE loss : {eval_loss.sqrt()}')
+        with torch.no_grad():
+            for step, batch in enumerate(eval_dataloader):
+                outputs = model(**batch)
+                predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                metric.add_batch(
+                    predictions=accelerator.gather(predictions),
+                    references=accelerator.gather(batch["labels"]),
+                )
+                loss = outputs.loss
+                loss = loss / args.gradient_accumulation_steps
+                eval_loss += loss.detach().numpy() * len(batch)
+                if args.print_loss_every_steps:
+                    if step % args.print_loss_every_steps == 0:
+                        print(f"Validation Loss at {step}: {loss.sqrt()}")
+            eval_loss /= len(eval_dataset)  
+            eval_loss = np.sqrt(eval_loss)      
+            print(f'Total Validation RMSE loss : {eval_loss}')
 
-        if args.wandb_project:
-            wandb.log({
-                "epoch": epoch,
-                "validation_rmse_loss": eval_loss.sqrt()
-            })
+            if args.wandb_project:
+                wandb.log({
+                    "epoch": epoch,
+                    "validation_rmse_loss": eval_loss
+                })
 
         eval_metric = metric.compute()
         logger.info(f"epoch {epoch}: {eval_metric}")
@@ -588,10 +590,10 @@ def main():
                 if len(y_preds.size()) == 0:
                     y_preds = y_preds.view(1)
 
-                predictions.append(y_preds)
+                predictions.append(y_preds.detach())
             np.save(
                 osp.join(args.output_dir, 'test_predictions.npy'),
-                torch.cat(predictions).detach().numpy()
+                torch.cat(predictions).numpy()
             )
 
     if args.inference_file:
@@ -606,13 +608,13 @@ def main():
                 if len(y_preds.size()) == 0:
                     y_preds = y_preds.view(1)
 
-                predictions.append(y_preds)
+                predictions.append(y_preds.detach())
                 del outputs, y_preds
                 gc.collect()
 
             np.save(
                 osp.join(args.output_dir, 'inference_predictions.npy'),
-                torch.cat(predictions).detach().numpy()
+                torch.cat(predictions).numpy()
             )
 
 
