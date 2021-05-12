@@ -588,7 +588,6 @@ def main():
                 y_preds = y_preds.view(1)
 
             predictions.append(y_preds)
-            print(predictions.shape)
         np.save(
             osp.join(args.output_dir, 'test_predictions.npy'),
             torch.cat(predictions).detach().numpy()
