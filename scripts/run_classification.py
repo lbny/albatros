@@ -324,7 +324,7 @@ def main():
     train_dataset = processed_datasets["train"]
     eval_dataset = processed_datasets["validation_matched" if args.task_name == "mnli" else "validation"]
     test_dataset = test_dataset.map(
-        preprocess_function, batched=True, remove_columns=raw_datasets["train"].column_names
+        preprocess_function, batched=True, remove_columns=test_dataset["test"].column_names
     )["test"]
 
     # Log a few random samples from the training set:
