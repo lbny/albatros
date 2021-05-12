@@ -417,7 +417,7 @@ def main():
 
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
-                    logger.warning(f"Loss at {step}: {loss}")
+                    print(f"Loss at {step}: {loss}")
 
             accelerator.backward(loss)
             if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
@@ -443,7 +443,7 @@ def main():
 
             if args.print_loss_every_steps:
                 if step % args.print_loss_every_steps == 0:
-                    logger.info(f"Loss at {step}: {loss}")
+                    print(f"Loss at {step}: {loss}")
 
         eval_metric = metric.compute()
         logger.info(f"epoch {epoch}: {eval_metric}")
