@@ -86,6 +86,9 @@ def parse_args():
         "--wandb_project", type=str, default=None, help="Weights and Biases project."
     )
     parser.add_argument(
+        "--wandb_name", type=str, default=None, help="Weights and Biases notes."
+    )
+    parser.add_argument(
         "--wandb_notes", type=str, default=None, help="Weights and Biases notes."
     )
     parser.add_argument(
@@ -208,6 +211,7 @@ def main():
 
         wandb.init(
             project=args.wandb_project,
+            name=args.wandb_name,
             notes=args.wandb_notes,
             tags=args.wandb_tags,
             config=args
