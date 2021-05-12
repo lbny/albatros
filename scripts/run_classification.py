@@ -547,9 +547,6 @@ def main():
                     "validation_rmse_loss": eval_loss
                 })
 
-        eval_metric = metric.compute()
-        logger.info(f"epoch {epoch}: {eval_metric}")
-
     if args.output_dir is not None:
         accelerator.wait_for_everyone()
         unwrapped_model = accelerator.unwrap_model(model)
@@ -570,14 +567,10 @@ def main():
             for step, batch in enumerate(eval_dataloader):
                 outputs = model(**batch)
                 predictions = outputs.logits.argmax(dim=-1)
-                metric.add_batch(
-                    predictions=accelerator.gather(predictions),
-                    references=accelerator.gather(batch["labels"]),
-                )
                 del outputs
                 gc.collect()
 
-        eval_metric = metric.compute()
+
         logger.info(f"mnli-mm: {eval_metric}")
 
     if args.test_file:
