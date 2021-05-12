@@ -511,7 +511,7 @@ def main():
             if completed_steps >= args.max_train_steps:
                 break
             
-            train_loss.append(loss.detach().numpy())
+            train_loss.append(loss.detach().cpu().numpy())
             del loss, outputs, batch
             gc.collect()
         
@@ -529,7 +529,7 @@ def main():
                 predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
                 loss = outputs.loss
                 loss = loss / args.gradient_accumulation_steps
-                eval_loss.append(loss.detach().numpy())
+                eval_loss.append(loss.detach().cpu().numpy())
                 if args.print_loss_every_steps:
                     if step % args.print_loss_every_steps == 0:
                         print(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[-args.print_loss_every_steps:]))}")
@@ -590,7 +590,7 @@ def main():
 
             np.save(
                 osp.join(args.output_dir, 'test_predictions.npy'),
-                torch.cat(predictions).numpy()
+                torch.cat(predictions).cpu().numpy()
             )
 
     if args.inference_file:
@@ -611,7 +611,7 @@ def main():
 
             np.save(
                 osp.join(args.output_dir, 'inference_predictions.npy'),
-                torch.cat(predictions).numpy()
+                torch.cat(predictions).cpu().numpy()
             )
 
 
