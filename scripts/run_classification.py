@@ -584,7 +584,6 @@ def main():
             for step, batch in enumerate(test_dataloader):
                 outputs = model(**batch)
                 y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
-                print(y_preds.shape)
                 # in case batch size is 1
                 if len(y_preds.size()) == 0:
                     y_preds = y_preds.view(1)
@@ -608,9 +607,6 @@ def main():
                     y_preds = y_preds.view(1)
 
                 predictions.append(y_preds)
-                print(y_preds.shape)
-                print(f'Inference step {step}')
-
                 del outputs, y_preds
                 gc.collect()
 
