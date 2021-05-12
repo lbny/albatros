@@ -582,12 +582,12 @@ def main():
         for step, batch in enumerate(test_dataloader):
             outputs = model(**batch)
             y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
-
+            print(y_preds.shape)
             if predictions is None:
                 predictions = y_preds
             else:
                 predictions = torch.cat([predictions, y_preds])
-
+            print(predictions.shape)
         np.save(
             osp.join(args.output_dir, 'test_predictions.npy'),
             predictions.detach().numpy()
