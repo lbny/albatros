@@ -578,6 +578,7 @@ def main():
     if args.test_file:
         print('Infering on test file...')
         predictions = None
+        model.eval()
         for step, batch in enumerate(test_dataloader):
             outputs = model(**batch)
             y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
@@ -595,6 +596,7 @@ def main():
     if args.inference_file:
         print('Infering on inference file...')
         predictions = None
+        model.eval()
         for step, batch in enumerate(inference_dataloader):
             outputs = model(**batch)
             y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
