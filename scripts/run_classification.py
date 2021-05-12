@@ -577,7 +577,7 @@ def main():
 
     if args.test_file:
         print('Infering on test file...')
-        predictions = None
+        predictions = []
         model.eval()
         for step, batch in enumerate(test_dataloader):
             outputs = model(**batch)
@@ -587,19 +587,16 @@ def main():
             if len(y_preds.size()) == 0:
                 y_preds = y_preds.view(1)
 
-            if predictions is None:
-                predictions = y_preds
-            else:
-                predictions = torch.cat([predictions, y_preds])
+            predictions.append(y_preds)
             print(predictions.shape)
         np.save(
             osp.join(args.output_dir, 'test_predictions.npy'),
-            predictions.detach().numpy()
+            torch.cat(predictions).detach().numpy()
         )
 
     if args.inference_file:
         print('Infering on inference file...')
-        predictions = None
+        predictions = []
         model.eval()
         for step, batch in enumerate(inference_dataloader):
             outputs = model(**batch)
@@ -608,13 +605,8 @@ def main():
             if len(y_preds.size()) == 0:
                 y_preds = y_preds.view(1)
 
-            if predictions is None:
-                predictions = y_preds
-            else:
-                predictions = torch.cat([predictions, y_preds])
-
-            print(predictions.shape)
-
+            predictions.append(y_preds)
+            print(y_preds.shape)
             print(f'Inference step {step}')
 
             del outputs, y_preds
@@ -622,7 +614,7 @@ def main():
 
         np.save(
             osp.join(args.output_dir, 'inference_predictions.npy'),
-            predictions.detach().numpy()
+            torch.cat(predictions).detach().numpy()
         )
 
 
