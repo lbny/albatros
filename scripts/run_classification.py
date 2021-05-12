@@ -77,6 +77,9 @@ def parse_args():
         "--test_file", type=str, default=None, help="A csv or a json file containing the test data."
     )
     parser.add_argument(
+        "--inference_file", type=str, default=None, help="A csv or a json file containing the inference data."
+    )
+    parser.add_argument(
         "--max_length",
         type=int,
         default=128,
@@ -163,6 +166,12 @@ def parse_args():
         if args.validation_file is not None:
             extension = args.validation_file.split(".")[-1]
             assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
+        if args.test_file is not None:
+            extension = args.test_file.split(".")[-1]
+            assert extension in ["csv", "json"], "`test_file` should be a csv or a json file."
+        if args.inference_file is not None:
+            extension = args.inference_file.split(".")[-1]
+            assert extension in ["csv", "json"], "`inference_file` should be a csv or a json file."
 
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -224,7 +233,9 @@ def main():
         raw_datasets = load_dataset(extension, data_files=data_files)
 
         if args.test_file is not None:
-            test_dataset = load_dataset(extension, data_files={'test': args.test_file}  )
+            test_dataset = load_dataset(extension, data_files={'test': args.test_file})
+        if args.inference_file is not None:
+            inference_dataset = load_dataset(extension, data_files={'inference': args.inference_file})
 
     # See more about loading any type of standard or custom dataset at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
@@ -329,6 +340,9 @@ def main():
     test_dataset = test_dataset.map(
         preprocess_function, batched=True, remove_columns=test_dataset["test"].column_names
     )["test"]
+    inference_dataset = inference_dataset.map(
+        preprocess_function, batched=True, remove_columns=inference_dataset["inference"].column_names
+    )["inference"]
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
@@ -351,8 +365,10 @@ def main():
     eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
 
     if args.test_file:
-
         test_dataloader = DataLoader(test_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
+
+    if args.inference_file:
+        inference_dataloader = DataLoader(inference_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
 
     # Optimizer
     # Split weights in two groups, one with weight decay and the other not.
@@ -371,9 +387,14 @@ def main():
 
     # Prepare everything with our `accelerator`.
     if args.test_file:
-        model, optimizer, train_dataloader, eval_dataloader, test_dataloader = accelerator.prepare(
-            model, optimizer, train_dataloader, eval_dataloader, test_dataloader
-        )
+        if args.inference_file:
+            model, optimizer, train_dataloader, eval_dataloader, test_dataloader, inference_dataloader = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader, test_dataloader, inference_dataloader
+            )
+        else:  
+            model, optimizer, train_dataloader, eval_dataloader, test_dataloader = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader, test_dataloader
+            )
     else:
         model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
             model, optimizer, train_dataloader, eval_dataloader
@@ -484,24 +505,32 @@ def main():
     if args.test_file:
 
         predictions = None
-
         for step, batch in enumerate(test_dataloader):
             outputs = model(**batch)
             y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
 
             if predictions is None:
-
                 predictions = y_preds
-
             else:
-
-                predictions = torch.cat([
-                    y_preds,
-                    predictions
-                ])
-
+                predictions = torch.cat([y_preds, predictions])
             np.save(
                 osp.join(args.output_dir, 'test_predictions.npy'),
+                predictions.detach().numpy()
+            )
+
+    if args.inference_file:
+
+        predictions = None
+        for step, batch in enumerate(inference_dataloader):
+            outputs = model(**batch)
+            y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+
+            if predictions is None:
+                predictions = y_preds
+            else:
+                predictions = torch.cat([y_preds, predictions])
+            np.save(
+                osp.join(args.output_dir, 'inference_predictions.npy'),
                 predictions.detach().numpy()
             )
 

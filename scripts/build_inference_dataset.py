@@ -4,6 +4,10 @@ Author: Lucas Bony
 Prepare datasets for inference :
 -train
 -test
+
+Create two datasets :
+test.csv containing only test texts
+inference.csv containing both test and train texts
 """
 import os.path as osp
 
@@ -28,7 +32,11 @@ train_df = train_df[['target', 'excerpt']].rename(columns={'target': 'label'})[:
 test_df: pd.DataFrame = pd.read_csv(args.test_filepath)
 test_df = test_df[['excerpt']][:args.test_n_rows]
 
-train_df.to_csv(osp.join(args.target_folder, 'train.csv'), index=False)
+#train_df.to_csv(osp.join(args.target_folder, 'train.csv'), index=False)
+
+inference_df = pd.concat([train_df[['excerpt']], test_df[['excerpt']]])
+inference_df.to_csv(osp.join(args.target_folder, 'inference.csv'), index=False)
+
 test_df.to_csv(osp.join(args.target_folder, 'test.csv'), index=False)
 
 
