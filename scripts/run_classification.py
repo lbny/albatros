@@ -529,9 +529,14 @@ def main():
             for step, batch in enumerate(eval_dataloader):
                 outputs = model(**batch)
                 predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                if len(batch["labels"].size()) == 0:
+                    batch_labels = batch["labels"].view(1)
+                else:
+                    batch_labels = batch["labels"]
+                
                 metric.add_batch(
                     predictions=accelerator.gather(predictions),
-                    references=accelerator.gather(batch["labels"]),
+                    references=accelerator.gather(batch_labels),
                 )
                 loss = outputs.loss
                 loss = loss / args.gradient_accumulation_steps
@@ -539,7 +544,7 @@ def main():
                 if args.print_loss_every_steps:
                     if step % args.print_loss_every_steps == 0:
                         print(f"Validation Loss at {step}: {loss.sqrt()}")
-                del loss, outputs, batch
+                del loss, outputs, batch, batch_labels
                 gc.collect()
 
             eval_loss /= len(eval_dataset)  
