@@ -3,3 +3,5 @@ datasets
 accelerate
 torchtext
 wandb
+pandas
+scikit-learn

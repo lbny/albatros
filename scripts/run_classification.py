@@ -386,6 +386,9 @@ def main():
             preprocess_function, batched=True, remove_columns=inference_dataset["inference"].column_names
         )["inference"]
 
+
+    # train one bert model
+
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
         logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
