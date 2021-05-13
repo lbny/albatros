@@ -34,7 +34,8 @@ from transformers import (
 )
 
 
-def train_one_bert(raw_datasets: datasets.Dataset, args: Dict, logger, test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, accelerator=None):
+def train_one_bert(raw_datasets: datasets.Dataset, args: Dict, logger, 
+test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, accelerator=None, wandb_tag: str=''):
         """
         raw_datasets (datasets.Dataset): The main dataset containing two splits : 'train' and 'validation'
         """
@@ -256,7 +257,8 @@ def train_one_bert(raw_datasets: datasets.Dataset, args: Dict, logger, test_data
                         "step": step,
                         "train_rmse_loss": loss.sqrt(),
                         "lr_0": optimizer.param_groups[0]['lr'],
-                        "lr_1": optimizer.param_groups[1]['lr']
+                        "lr_1": optimizer.param_groups[1]['lr'],
+                        "tag": wandb_tag
                     })
 
                 accelerator.backward(loss)
@@ -278,7 +280,7 @@ def train_one_bert(raw_datasets: datasets.Dataset, args: Dict, logger, test_data
             print(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
 
             if args.wandb_project:
-                wandb.log({'epoch': epoch, 'total_train_loss': train_loss})
+                wandb.log({'epoch': epoch, 'total_train_loss': train_loss, 'tag': wandb_tag})
 
             model.eval()
             eval_loss = []
@@ -302,7 +304,8 @@ def train_one_bert(raw_datasets: datasets.Dataset, args: Dict, logger, test_data
                 if args.wandb_project:
                     wandb.log({
                         "epoch": epoch,
-                        "validation_rmse_loss": eval_loss
+                        "validation_rmse_loss": eval_loss,
+                        'tag': wandb_tag
                     })
 
         if args.output_dir is not None:

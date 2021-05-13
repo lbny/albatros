@@ -304,7 +304,7 @@ def main():
             fold_raw_datasets = load_dataset(extension, data_files=data_files)
             fold_raw_datasets['train'] = datasets.Dataset.from_dict(fold_raw_datasets['train'][train_index])
             fold_raw_datasets['validation'] = datasets.Dataset.from_dict(fold_raw_datasets['validation'][valid_index])
-            output: Dict = train_one_bert(fold_raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator)
+            output: Dict = train_one_bert(fold_raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator, wandb_tag=f'fold_{fold_id}')
             # Save fold predictions
             if args.test_file:
                 np.save(
