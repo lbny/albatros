@@ -318,6 +318,8 @@ def main():
                     output['inference_predictions']
                 )
 
+            fold_output.append(output)
+
         # Save averaged predictions
         if args.test_file:
 
