@@ -377,5 +377,6 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                 #)
 
     
-
+        del model
+        gc.collect()
         return output
