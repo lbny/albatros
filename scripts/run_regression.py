@@ -389,226 +389,228 @@ def main():
 
     # train one bert model
 
-    # Log a few random samples from the training set:
-    for index in random.sample(range(len(train_dataset)), 3):
-        logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
+    def train_one_bert(train_dataset: Dataset, args: Dict, eval_dataset: Dataset=None, test_dataset: Dataset=None, inference_dataset: Dataset=None):
 
-    # DataLoaders creation:
-    if args.pad_to_max_length:
-        # If padding was already done ot max length, we use the default data collator that will just convert everything
-        # to tensors.
-        data_collator = default_data_collator
-    else:
-        # Otherwise, `DataCollatorWithPadding` will apply dynamic padding for us (by padding to the maximum length of
-        # the samples passed). When using mixed precision, we add `pad_to_multiple_of=8` to pad all tensors to multiple
-        # of 8s, which will enable the use of Tensor Cores on NVIDIA hardware with compute capability >= 7.5 (Volta).
-        data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 if accelerator.use_fp16 else None))
+        # Log a few random samples from the training set:
+        for index in random.sample(range(len(train_dataset)), 3):
+            logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
 
-    train_dataloader = DataLoader(
-        train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
-    )
-    eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
+        # DataLoaders creation:
+        if args.pad_to_max_length:
+            # If padding was already done ot max length, we use the default data collator that will just convert everything
+            # to tensors.
+            data_collator = default_data_collator
+        else:
+            # Otherwise, `DataCollatorWithPadding` will apply dynamic padding for us (by padding to the maximum length of
+            # the samples passed). When using mixed precision, we add `pad_to_multiple_of=8` to pad all tensors to multiple
+            # of 8s, which will enable the use of Tensor Cores on NVIDIA hardware with compute capability >= 7.5 (Volta).
+            data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=(8 if accelerator.use_fp16 else None))
 
-    if args.test_file:
-        test_dataloader = DataLoader(test_dataset, collate_fn=data_collator, batch_size=args.per_device_test_batch_size)
+        train_dataloader = DataLoader(
+            train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
+        )
+        eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
 
-    if args.inference_file:
-        inference_dataloader = DataLoader(inference_dataset, collate_fn=data_collator, batch_size=args.per_device_inference_batch_size)
+        if args.test_file:
+            test_dataloader = DataLoader(test_dataset, collate_fn=data_collator, batch_size=args.per_device_test_batch_size)
 
-    # Optimizer
-    # Split weights in two groups, one with weight decay and the other not.
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": args.weight_decay,
-        },
-        {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-            "weight_decay": 0.0,
-        },
-    ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
-
-    # Prepare everything with our `accelerator`.
-    if args.test_file:
         if args.inference_file:
-            model, optimizer, train_dataloader, eval_dataloader, test_dataloader, inference_dataloader = accelerator.prepare(
-                model, optimizer, train_dataloader, eval_dataloader, test_dataloader, inference_dataloader
+            inference_dataloader = DataLoader(inference_dataset, collate_fn=data_collator, batch_size=args.per_device_inference_batch_size)
+
+        # Optimizer
+        # Split weights in two groups, one with weight decay and the other not.
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": args.weight_decay,
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+            },
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
+
+        # Prepare everything with our `accelerator`.
+        if args.test_file:
+            if args.inference_file:
+                model, optimizer, train_dataloader, eval_dataloader, test_dataloader, inference_dataloader = accelerator.prepare(
+                    model, optimizer, train_dataloader, eval_dataloader, test_dataloader, inference_dataloader
+                )
+            else:  
+                model, optimizer, train_dataloader, eval_dataloader, test_dataloader = accelerator.prepare(
+                    model, optimizer, train_dataloader, eval_dataloader, test_dataloader
+                )
+        else:
+            model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
+                model, optimizer, train_dataloader, eval_dataloader
             )
-        else:  
-            model, optimizer, train_dataloader, eval_dataloader, test_dataloader = accelerator.prepare(
-                model, optimizer, train_dataloader, eval_dataloader, test_dataloader
-            )
-    else:
-        model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
-            model, optimizer, train_dataloader, eval_dataloader
+
+        # Note -> the training dataloader needs to be prepared before we grab his length below (cause its length will be
+        # shorter in multiprocess)
+
+        # Scheduler and math around the number of training steps.
+        num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
+        if args.max_train_steps is None:
+            args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
+        else:
+            args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
+
+        lr_scheduler = get_scheduler(
+            name=args.lr_scheduler_type,
+            optimizer=optimizer,
+            num_warmup_steps=args.num_warmup_steps,
+            num_training_steps=args.max_train_steps,
         )
 
-    # Note -> the training dataloader needs to be prepared before we grab his length below (cause its length will be
-    # shorter in multiprocess)
 
-    # Scheduler and math around the number of training steps.
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
-    if args.max_train_steps is None:
-        args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
-    else:
-        args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
+        # Train!
+        total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
 
-    lr_scheduler = get_scheduler(
-        name=args.lr_scheduler_type,
-        optimizer=optimizer,
-        num_warmup_steps=args.num_warmup_steps,
-        num_training_steps=args.max_train_steps,
-    )
+        logger.info("***** Running training *****")
+        logger.info(f"  Num examples = {len(train_dataset)}")
+        logger.info(f"  Num Epochs = {args.num_train_epochs}")
+        logger.info(f"  Instantaneous batch size per device = {args.per_device_train_batch_size}")
+        logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
+        logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
+        logger.info(f"  Total optimization steps = {args.max_train_steps}")
+        # Only show the progress bar once on each machine.
+        progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
+        completed_steps = 0
 
-
-    # Train!
-    total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
-
-    logger.info("***** Running training *****")
-    logger.info(f"  Num examples = {len(train_dataset)}")
-    logger.info(f"  Num Epochs = {args.num_train_epochs}")
-    logger.info(f"  Instantaneous batch size per device = {args.per_device_train_batch_size}")
-    logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
-    logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
-    logger.info(f"  Total optimization steps = {args.max_train_steps}")
-    # Only show the progress bar once on each machine.
-    progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
-    completed_steps = 0
-
-    for epoch in range(args.num_train_epochs):
-        model.train()
-        train_loss = []
-        for step, batch in enumerate(train_dataloader):
-            outputs = model(**batch)
-            loss = outputs.loss
-            loss = loss / args.gradient_accumulation_steps
-
-            if args.print_loss_every_steps:
-                if step % args.print_loss_every_steps == 0:
-                    print(f"Train Loss at {step}: {np.sqrt(np.mean(train_loss[-args.print_loss_every_steps:]))}")
-
-            if args.wandb_project:
-                wandb.log({
-                    "epoch": epoch,
-                    "step": step,
-                    "train_rmse_loss": loss.sqrt(),
-                    "lr_0": optimizer.param_groups[0]['lr'],
-                    "lr_1": optimizer.param_groups[1]['lr']
-                })
-
-            accelerator.backward(loss)
-            if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad()
-                progress_bar.update(1)
-                completed_steps += 1
-
-            if completed_steps >= args.max_train_steps:
-                break
-            
-            train_loss.append(loss.detach().cpu().numpy())
-            del loss, outputs, batch
-            gc.collect()
-        
-        train_loss = np.sqrt(np.mean(train_loss))
-        print(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
-
-        if args.wandb_project:
-            wandb.log({'epoch': epoch, 'total_train_loss': train_loss})
-
-        model.eval()
-        eval_loss = []
-        with torch.no_grad():
-            for step, batch in enumerate(eval_dataloader):
+        for epoch in range(args.num_train_epochs):
+            model.train()
+            train_loss = []
+            for step, batch in enumerate(train_dataloader):
                 outputs = model(**batch)
-                predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
                 loss = outputs.loss
                 loss = loss / args.gradient_accumulation_steps
-                eval_loss.append(loss.detach().cpu().numpy())
+
                 if args.print_loss_every_steps:
                     if step % args.print_loss_every_steps == 0:
-                        print(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[-args.print_loss_every_steps:]))}")
+                        print(f"Train Loss at {step}: {np.sqrt(np.mean(train_loss[-args.print_loss_every_steps:]))}")
+
+                if args.wandb_project:
+                    wandb.log({
+                        "epoch": epoch,
+                        "step": step,
+                        "train_rmse_loss": loss.sqrt(),
+                        "lr_0": optimizer.param_groups[0]['lr'],
+                        "lr_1": optimizer.param_groups[1]['lr']
+                    })
+
+                accelerator.backward(loss)
+                if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
+                    optimizer.step()
+                    lr_scheduler.step()
+                    optimizer.zero_grad()
+                    progress_bar.update(1)
+                    completed_steps += 1
+
+                if completed_steps >= args.max_train_steps:
+                    break
+                
+                train_loss.append(loss.detach().cpu().numpy())
                 del loss, outputs, batch
                 gc.collect()
-
             
-            eval_loss = np.sqrt(np.mean(eval_loss))    
-            print(f'Total Validation RMSE loss : {eval_loss}')
+            train_loss = np.sqrt(np.mean(train_loss))
+            print(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
 
             if args.wandb_project:
-                wandb.log({
-                    "epoch": epoch,
-                    "validation_rmse_loss": eval_loss
-                })
+                wandb.log({'epoch': epoch, 'total_train_loss': train_loss})
 
-    if args.output_dir is not None:
-        accelerator.wait_for_everyone()
-        unwrapped_model = accelerator.unwrap_model(model)
-        unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
-        del unwrapped_model
-        gc.collect()
+            model.eval()
+            eval_loss = []
+            with torch.no_grad():
+                for step, batch in enumerate(eval_dataloader):
+                    outputs = model(**batch)
+                    predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                    loss = outputs.loss
+                    loss = loss / args.gradient_accumulation_steps
+                    eval_loss.append(loss.detach().cpu().numpy())
+                    if args.print_loss_every_steps:
+                        if step % args.print_loss_every_steps == 0:
+                            print(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[-args.print_loss_every_steps:]))}")
+                    del loss, outputs, batch
+                    gc.collect()
 
-    if args.task_name == "mnli":
-        # Final evaluation on mismatched validation set
-        eval_dataset = processed_datasets["validation_mismatched"]
-        eval_dataloader = DataLoader(
-            eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size
-        )
-        eval_dataloader = accelerator.prepare(eval_dataloader)
+                
+                eval_loss = np.sqrt(np.mean(eval_loss))    
+                print(f'Total Validation RMSE loss : {eval_loss}')
 
-        model.eval()
-        with torch.no_grad():
-            for step, batch in enumerate(eval_dataloader):
-                outputs = model(**batch)
-                predictions = outputs.logits.argmax(dim=-1)
-                del outputs
-                gc.collect()
+                if args.wandb_project:
+                    wandb.log({
+                        "epoch": epoch,
+                        "validation_rmse_loss": eval_loss
+                    })
 
+        if args.output_dir is not None:
+            accelerator.wait_for_everyone()
+            unwrapped_model = accelerator.unwrap_model(model)
+            unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
+            del unwrapped_model
+            gc.collect()
 
-    if args.test_file:
-        print('Infering on test file...')
-        predictions = []
-        model.eval()
-        with torch.no_grad():
-            for step, batch in enumerate(test_dataloader):
-                outputs = model(**batch)
-                y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
-                # in case batch size is 1
-                if len(y_preds.size()) == 0:
-                    y_preds = y_preds.view(1)
-
-                predictions.append(y_preds.detach())
-                del outputs, y_preds
-                gc.collect()
-
-            np.save(
-                osp.join(args.output_dir, 'test_predictions.npy'),
-                torch.cat(predictions).cpu().numpy()
+        if args.task_name == "mnli":
+            # Final evaluation on mismatched validation set
+            eval_dataset = processed_datasets["validation_mismatched"]
+            eval_dataloader = DataLoader(
+                eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size
             )
+            eval_dataloader = accelerator.prepare(eval_dataloader)
 
-    if args.inference_file:
-        print('Infering on inference file...')
-        predictions = []
-        model.eval()
-        with torch.no_grad():
-            for step, batch in enumerate(inference_dataloader):
-                outputs = model(**batch)
-                y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
-                # in case batch size is 1
-                if len(y_preds.size()) == 0:
-                    y_preds = y_preds.view(1)
+            model.eval()
+            with torch.no_grad():
+                for step, batch in enumerate(eval_dataloader):
+                    outputs = model(**batch)
+                    predictions = outputs.logits.argmax(dim=-1)
+                    del outputs
+                    gc.collect()
 
-                predictions.append(y_preds.detach())
-                del outputs, y_preds
-                gc.collect()
 
-            np.save(
-                osp.join(args.output_dir, 'inference_predictions.npy'),
-                torch.cat(predictions).cpu().numpy()
-            )
+        if args.test_file:
+            print('Infering on test file...')
+            predictions = []
+            model.eval()
+            with torch.no_grad():
+                for step, batch in enumerate(test_dataloader):
+                    outputs = model(**batch)
+                    y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                    # in case batch size is 1
+                    if len(y_preds.size()) == 0:
+                        y_preds = y_preds.view(1)
+
+                    predictions.append(y_preds.detach())
+                    del outputs, y_preds
+                    gc.collect()
+
+                np.save(
+                    osp.join(args.output_dir, 'test_predictions.npy'),
+                    torch.cat(predictions).cpu().numpy()
+                )
+
+        if args.inference_file:
+            print('Infering on inference file...')
+            predictions = []
+            model.eval()
+            with torch.no_grad():
+                for step, batch in enumerate(inference_dataloader):
+                    outputs = model(**batch)
+                    y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                    # in case batch size is 1
+                    if len(y_preds.size()) == 0:
+                        y_preds = y_preds.view(1)
+
+                    predictions.append(y_preds.detach())
+                    del outputs, y_preds
+                    gc.collect()
+
+                np.save(
+                    osp.join(args.output_dir, 'inference_predictions.npy'),
+                    torch.cat(predictions).cpu().numpy()
+                )
 
 
 

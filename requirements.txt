@@ -3,3 +3,4 @@ datasets
 accelerate
 torchtext
 wandb
+pandas
