@@ -50,6 +50,7 @@ from transformers import (
 )
 
 from modeling_bert import train_one_bert
+from utils import format_filepath
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,9 @@ def parse_args():
     )
     parser.add_argument(
         "--n_folds", type=int, default=1, help="Number of folds to train models on."
+    )
+    parser.add_argument(
+        "--run_name", type=str, default='', help="Number of folds to train models on."
     )
     parser.add_argument(
         "--max_length",
@@ -308,13 +312,13 @@ def main():
             # Save fold predictions
             if args.test_file:
                 np.save(
-                    osp.join(args.output_dir, f'test_predictions_fold_{fold_id}.npy'),
+                    format_filepath(osp.join(args.output_dir, f'test_predictions_fold_{fold_id}.npy'), args.run_name),
                     output['test_predictions']
                 )
             
             if args.inference_file:
                 np.save(
-                    osp.join(args.output_dir, f'inference_predictions_fold_{fold_id}.npy'),
+                    format_filepath(osp.join(args.output_dir, f'inference_predictions_fold_{fold_id}.npy'), args.run_name),
                     output['inference_predictions']
                 )
 
@@ -324,13 +328,13 @@ def main():
         if args.test_file:
 
             np.save(
-                    osp.join(args.output_dir, f'test_predictions.npy'),
+                    format_filepath(osp.join(args.output_dir, f'test_predictions.npy'), args.run_name),
                     np.mean([output['test_predictions'] for output in fold_output], axis=0)
                 )
         if args.inference_file:
 
             np.save(
-                    osp.join(args.output_dir, f'inference_predictions.npy'),
+                    format_filepath(osp.join(args.output_dir, f'inference_predictions.npy'), args.run_name),
                     np.mean([output['inference_predictions'] for output in fold_output], axis=0)
                 )
 
