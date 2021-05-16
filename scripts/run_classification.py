@@ -96,6 +96,9 @@ def parse_args():
         "--wandb_tags", type=str, default=None, help="Weights and Biases tags."
     )
     parser.add_argument(
+        "--save_model", action="store_true", help="Save model to output_dir."
+    )
+    parser.add_argument(
         "--max_length",
         type=int,
         default=128,
@@ -544,7 +547,7 @@ def main():
                     "validation_rmse_loss": eval_loss
                 })
 
-    if args.output_dir is not None:
+    if args.output_dir is not None and args.save_model:
         accelerator.wait_for_everyone()
         unwrapped_model = accelerator.unwrap_model(model)
         unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
