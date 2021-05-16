@@ -203,7 +203,7 @@ def parse_args():
         "--eval_metrics_file", type=str, default=None, help="Name of the file containing the metrics, one per epoch."
     )
     parser.add_argument(
-        "--save_model", type=bool, action='store_true', help="Do save model."
+        "--save_model", action='store_true', help="Do save model."
     )
     parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
     parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
