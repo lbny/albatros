@@ -49,7 +49,7 @@ from transformers import (
     set_seed,
 )
 
-from modeling_bert import train_one_bert
+from modeling_auto import train_one_model
 from utils import format_filepath
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,15 @@ def parse_args():
     )
     parser.add_argument(
         "--run_name", type=str, default='', help="Number of folds to train models on."
+    )
+    parser.add_argument(
+        "--tokenizer", type=str, default='basic_english', help="Tokenizer (only in boosting, custom NN or linear mode)."
+    )
+    parser.add_argument(
+        "--embeddings", type=str, default='glove', help="Pretrained embeddings to use (only in boosting, custom NN or linear mode)."
+    )
+    parser.add_argument(
+        "--embeddings_dim", type=int, default=300, help="Dimension of the pretrained embeddings (only in boosting, custom NN or linear mode)."
     )
     parser.add_argument(
         "--max_length",
@@ -308,7 +317,7 @@ def main():
             fold_raw_datasets = load_dataset(extension, data_files={'full': data_files['train']})
             fold_raw_datasets['train'] = datasets.Dataset.from_dict(fold_raw_datasets['full'][train_index])
             fold_raw_datasets['validation'] = datasets.Dataset.from_dict(fold_raw_datasets['full'][valid_index])
-            output: Dict = train_one_bert(fold_raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator, wandb_tag=f'fold_{fold_id}')
+            output: Dict = train_one_model(args.model_name_or_path, fold_raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator, wandb_tag=f'fold_{fold_id}')
             # Save fold predictions
             if args.test_file:
                 np.save(
@@ -339,7 +348,7 @@ def main():
                 )
 
     else:
-        output: Dict = train_one_bert(raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator)
+        output: Dict = train_one_model(args.model_name_or_path, raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator)
 
     print(output)
 

@@ -7,6 +7,7 @@ import gc
 from typing import Dict, List, Callable, Union
 
 import numpy as np
+import pandas as pd
 
 from pandarallel import pandarallel
 
@@ -31,10 +32,10 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
     tokenizer = get_tokenizer(args.tokenizer)
 
     if args.embeddings == 'glove':
-
-        vocab = GloVe('6B', dim=args.embeddings_dim)
-
-    vocab.get_vecs_by_tokens(tokenizer('Hello world !'))
+        try:
+            vocab = GloVe('6B', vectors_cache='../.vector_cache', dim=args.embeddings_dim)
+        except:
+            vocab = GloVe('6B', dim=args.embeddings_dim)
 
     # Text column
     # -----------
@@ -84,59 +85,64 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
     # Compute embeddings for all sentences in train and validation
     # corpuses and store them in lists
     # TODO train using datasets map function ?
-    def get_sentence_embedding_function(vocab, tokenizer) -> Callable:
+    def get_sentence_embedding_function(vocab, tokenizer, reduction: str='mean') -> Callable:
         def embed_sentence(sentence: str) -> torch.Tensor:
             """Embed a sentence using provided vocabulary"""
-            return vocab.get_vecs_by_tokens(tokenizer(sentence))
+            if reduction == 'mean':
+                return torch.mean(vocab.get_vecs_by_tokens(tokenizer(sentence)), axis=0).detach().cpu().numpy()
+            elif reduction == 'sum':
+                return torch.sum(vocab.get_vecs_by_tokens(tokenizer(sentence)), axis=0).detach().cpu().numpy()
+        return embed_sentence
 
     pandarallel.initialize(nb_workers=8, progress_bar=True)
+    #print(raw_datasets['train'][sentence1_key])
+    train_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['train'][sentence1_key]).parallel_apply(
+        get_sentence_embedding_function(vocab, tokenizer)).tolist())
+    valid_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['validation'][sentence1_key]).parallel_apply(
+        get_sentence_embedding_function(vocab, tokenizer)).tolist())
 
-    train_samples_embeddings: List[torch.Tensor] = raw_datasets['train'][sentence1_key].parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist()
-    valid_samples_embeddings: List[torch.Tensor] = raw_datasets['validation'][sentence1_key].parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist()    
+    assert valid_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Validation and train embedding dim mismatch: {valid_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
     if args.test_file:
-        test_samples_embeddings: List[torch.Tensor] = test_dataset[sentence1_key].parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist()
+        test_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(test_dataset['test'][sentence1_key]).parallel_apply(
+        get_sentence_embedding_function(vocab, tokenizer)).tolist())
+        assert test_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Test and train embedding dim mismatch: {test_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
+
 
     if args.inference_file:
-        inference_samples_embeddings: List[torch.Tensor] = inference_dataset[sentence1_key].parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist()
-
+        inference_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(inference_dataset['inference'][sentence1_key]).parallel_apply(
+        get_sentence_embedding_function(vocab, tokenizer)).tolist())
+        assert inference_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Inference and train embedding dim mismatch: {inference_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
     # Training
     # --------
-
-    if args.model == 'lgbm':
-
+    if args.model_name_or_path == 'lgbm':
+        print('DEBUG1')
         train_data: lgbm.Dataset = lgbm.Dataset(np.asarray(train_samples_embeddings), label=train_labels)
         valid_data: lgbm.Dataset = lgbm.Dataset(np.asarray(valid_samples_embeddings), label=valid_labels)
 
         parameters: Dict = {
             'objective': 'regression',
-            'learning_rate': 1e-2,
+            'learning_rate': args.learning_rate,
+            'metric': 'rmse'
         }
 
         model = lgbm.train(
             parameters,
             train_data,
             valid_sets=valid_data,
-            num_boost_round=args.num_train_epochs,
-            early_stopping_rounds=100
+            num_boost_round=args.num_train_epochs
         )
 
     # Infering
     # --------
 
     if args.test_file:
-        test_data: lgbm.Dataset = lgbm.Dataset(np.asarray(test_samples_embeddings))
-        test_predictions = model.predict(test_data)
+        test_predictions = model.predict(test_samples_embeddings)
         output['test_predictions'] = test_predictions
 
     if args.inference_file:
-        inference_data: lgbm.Dataset = lgbm.Dataset(np.asarray(inference_samples_embeddings))
-        inference_predictions = model.predict(inference_data)
+        inference_predictions = model.predict(inference_samples_embeddings)
         output['inference_predictions'] = inference_predictions
 
     return output
