@@ -312,7 +312,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
 
                 if args.eval_metrics_file:
                     with open(osp.join(args.output_dir, '_'.join([args.eval_metrics_file, str(epoch)]) + '.json'), 'w') as output_stream:
-                        json.dump({'rmse': eval_loss}, output_stream)
+                        json.dump({'rmse': float(eval_loss)}, output_stream)
                         output_stream.close()
 
         if args.output_dir is not None and args.save_model:
