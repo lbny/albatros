@@ -131,6 +131,43 @@ def parse_args():
         "--num_iterations", type=int, default=100, help="Number of iterations in boosting."
     )
     parser.add_argument(
+        "--alpha", type=float, default=0, help="L1 coef."
+    )
+    parser.add_argument(
+        "--lambda", type=float, default=1, help="L2 coef."
+    )
+    parser.add_argument(
+        "--alpha_1", type=float, default=1e-6, help="Hyper-parameter : shape parameter for the Gamma distribution prior over the alpha parameter."
+    )
+    parser.add_argument(
+        "--lambda_1", type=float, default=1e-6, help="Hyper-parameter : inverse scale parameter (rate parameter) for the Gamma distribution prior over the alpha parameter."
+    )
+    parser.add_argument(
+        "--alpha_2", type=float, default=1e-6, help="Hyper-parameter : shape parameter for the Gamma distribution prior over the lambda parameter."
+    )
+    parser.add_argument(
+        "--lambda_2", type=float, default=1e-6, help="Hyper-parameter : inverse scale parameter (rate parameter) for the Gamma distribution prior over the lambda parameter."
+    )
+    parser.add_argument(
+        "--sublinear_tf", action='store_true', help="Use sublinear term frequency."
+    )
+    parser.add_argument(
+        "--smooth_idf", action='store_true', help="Smooth idf."
+    )
+    parser.add_argument(
+        "--min_ngram", type=int, default=1, help="Min ngram to use."
+    )
+    parser.add_argument(
+        "--max_ngram", type=int, default=1, help="Max ngram to use."
+    )
+    parser.add_argument(
+        "--max_df", type=float, default=1, help="Max document frequency to use."
+    )
+    parser.add_argument(
+        "--min_df", type=float, default=1, help="Min document frequency to use."
+    )
+   
+    parser.add_argument(
         "--max_length",
         type=int,
         default=128,

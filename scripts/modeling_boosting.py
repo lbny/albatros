@@ -3,6 +3,8 @@ Author: Lucas Bony
 
 Train light gbm regressor.
 """
+import os.path as osp
+import json
 import gc
 from typing import Dict, List, Callable, Union
 
@@ -12,6 +14,13 @@ import pandas as pd
 from pandarallel import pandarallel
 
 import lightgbm as lgbm
+import xgboost as xgb
+
+from sklearn.linear_model import LinearRegression, BayesianRidge
+from sklearn.metrics import mean_squared_error
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+from scipy.sparse import csr_matrix
 
 import datasets
 import torch
@@ -100,30 +109,52 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
 
         return embed_sentence
 
-    pandarallel.initialize(nb_workers=8, progress_bar=True)
-    #print(raw_datasets['train'][sentence1_key])
-    train_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['train'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
-    valid_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['validation'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+    if args.embeddings in ['tfidf']:
+        tfidf: TfidfVectorizer = TfidfVectorizer(
+            sublinear_tf=args.sublinear_tf,
+            ngram_range=(args.min_ngram, args.max_ngram),
+            smooth_idf=args.smooth_idf,
+            max_df=args.max_df,
+            min_df=args.min_df
+        )
+        tfidf.fit(raw_datasets['train'][sentence1_key] + raw_datasets['validation'][sentence1_key] + test_dataset['test'][sentence1_key], inference_dataset['inference'][sentence1_key])
+    
+        train_samples_embeddings: csr_matrix = tfidf.transform(raw_datasets['train'][sentence1_key])
+        valid_samples_embeddings: csr_matrix = tfidf.transform(raw_datasets['validation'][sentence1_key])
 
-    assert valid_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Validation and train embedding dim mismatch: {valid_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
+        if args.test_file:
+            test_samples_embeddings: csr_matrix = tfidf.transform(test_dataset['test'][sentence1_key])
 
-    if args.test_file:
-        test_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(test_dataset['test'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
-        assert test_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Test and train embedding dim mismatch: {test_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
+        if args.inference_file:
+            inference_samples_embeddings: csr_matrix = tfidf.transform(inference_dataset['inference'][sentence1_key])
 
 
-    if args.inference_file:
-        inference_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(inference_dataset['inference'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
-        assert inference_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Inference and train embedding dim mismatch: {inference_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
+    else:
+
+        pandarallel.initialize(nb_workers=8, progress_bar=True)
+        #print(raw_datasets['train'][sentence1_key])
+        train_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['train'][sentence1_key]).parallel_apply(
+            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+        valid_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['validation'][sentence1_key]).parallel_apply(
+            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+
+        assert valid_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Validation and train embedding dim mismatch: {valid_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
+
+        if args.test_file:
+            test_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(test_dataset['test'][sentence1_key]).parallel_apply(
+            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+            assert test_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Test and train embedding dim mismatch: {test_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
+
+
+        if args.inference_file:
+            inference_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(inference_dataset['inference'][sentence1_key]).parallel_apply(
+            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+            assert inference_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Inference and train embedding dim mismatch: {inference_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
     # Training
     # --------
     if args.model_name_or_path == 'lgbm':
-        print('DEBUG1')
+
         train_data: lgbm.Dataset = lgbm.Dataset(np.asarray(train_samples_embeddings), label=train_labels)
         valid_data: lgbm.Dataset = lgbm.Dataset(np.asarray(valid_samples_embeddings), label=valid_labels)
 
@@ -135,7 +166,7 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             'min_data_in_leaf': args.min_data_in_leaf,
             'feature_fraction': args.feature_fraction,
             'bagging_fraction': args.bagging_fraction,
-            'num_iterations': args.num_iterations,
+            'num_iterations': args.num_train_epochs,
             'metric': 'rmse'
         }
 
@@ -143,8 +174,70 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             parameters,
             train_data,
             valid_sets=valid_data,
-            num_boost_round=args.num_train_epochs
         )
+
+    elif args.model_name_or_path == 'xgboost':
+        
+        train_data: xgb.DMatrix = xgb.DMatrix(np.asarray(train_samples_embeddings), label=train_labels)
+        valid_data: xgb.DMatrix = xgb.DMatrix(np.asarray(valid_samples_embeddings), label=valid_labels)
+
+        tree_method: str = 'hist'
+        if torch.cuda.is_available():
+            tree_method = 'gpu_hist'
+
+        parameters: Dict = {
+            'objective': 'reg:squarederror',
+            'learning_rate': args.learning_rate,
+            'max_leaves': args.num_leaves,
+            'max_depth': args.max_depth,
+            'gamma': args.min_data_in_leaf,
+            'colsample_bytree': args.feature_fraction,
+            'subsample': args.bagging_fraction,
+            'num_round': args.num_train_epochs,
+            'lambda': args.lambda,
+            'alpha': args.alpha,
+            'tree_method': tree_method,
+            'eval_metric': 'rmse'
+        }
+
+        model = xgb.train(
+            params=parameters,
+            dtrain=train_data,
+            evals=[('train', train_data), ('valid', valid_data)],
+        )
+
+
+    elif args.model_name_or_path == 'linear_bayesian_ridge':
+        
+        model = BayesianRidge(
+            n_iter=args.num_train_epochs,
+            alpha_1=args.alpha_1,
+            alpha_2=args.alpha_2,
+            lambda_1=args.lambda_1,
+            lambda_2=args.lambda_2,
+            normalize=args.normalize
+        )
+
+        model.fit(train_samples_embeddings, train_labels)        
+
+    elif args.model_name_or_path == 'linear_mse':
+        model = LinearRegression()
+
+        model.fit(train_samples_embeddings, train_labels)
+
+        valid_preds = model.predict(valid_samples_embeddings)
+        eval_loss = np.sqrt(mean_squared_error(valid_labels, valid_preds))
+        print(eval_loss)
+
+    # Validating
+    # ----------
+
+    valid_preds = model.predict(valid_samples_embeddings)
+    train_preds = model.predict(train_samples_embeddings)
+    eval_loss = np.sqrt(mean_squared_error(valid_labels, valid_preds))
+    train_loss = np.sqrt(mean_squared_error(train_labels, train_preds))
+    print(f"Eval loss: {eval_loss}")
+    print(f"Eval loss: {train_loss}")
 
     # Infering
     # --------
@@ -156,6 +249,13 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
     if args.inference_file:
         inference_predictions = model.predict(inference_samples_embeddings)
         output['inference_predictions'] = inference_predictions
+
+    if args.eval_metrics_file:        
+
+        with open(osp.join(args.output_dir, '_'.join([args.eval_metrics_file, "0"]) + '.json'), 'w') as output_stream:
+            json.dump({'validation_rmse_loss': float(eval_loss),
+            'train_rmse_loss': float(train_loss)}, output_stream)
+            output_stream.close()
 
     return output
 
