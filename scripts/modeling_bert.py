@@ -251,7 +251,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
 
                 if args.print_loss_every_steps:
                     if step % args.print_loss_every_steps == 0:
-                        print(f"Train Loss at {step}: {np.sqrt(np.mean(train_loss[-args.print_loss_every_steps:]))}")
+                        logger.info(f"Train Loss at {step}: {np.sqrt(np.mean(train_loss[-args.print_loss_every_steps:]))}")
 
                 if args.wandb_project:
                     wandb.log({
@@ -279,7 +279,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                 gc.collect()
             
             train_loss = np.sqrt(np.mean(train_loss))
-            print(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
+            logger.info(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
 
             if args.wandb_project:
                 wandb.log({'epoch': epoch, 'total_train_loss': train_loss, 'tag': wandb_tag})
@@ -295,13 +295,13 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     eval_loss.append(loss.detach().cpu().numpy())
                     if args.print_loss_every_steps:
                         if step % args.print_loss_every_steps == 0:
-                            print(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[-args.print_loss_every_steps:]))}")
+                            logger.info(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[-args.print_loss_every_steps:]))}")
                     del loss, outputs, batch
                     gc.collect()
 
                 
                 eval_loss = np.sqrt(np.mean(eval_loss))    
-                print(f'Total Validation RMSE loss : {eval_loss}')
+                logger.info(f'Total Validation RMSE loss : {eval_loss}')
 
                 if args.wandb_project:
                     wandb.log({
@@ -339,7 +339,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     gc.collect()        
 
         if args.test_file:
-            print('Infering on test file...')
+            logger.info('Infering on test file...')
             predictions = []
             model.eval()
             with torch.no_grad():
@@ -361,7 +361,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                 output['test_predictions'] = torch.cat(predictions).cpu().numpy()
 
         if args.inference_file:
-            print('Infering on inference file...')
+            logger.info('Infering on inference file...')
             predictions = []
             model.eval()
             with torch.no_grad():
