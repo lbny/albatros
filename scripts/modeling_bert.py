@@ -320,7 +320,9 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
             accelerator.wait_for_everyone()
             unwrapped_model = accelerator.unwrap_model(model)
             unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)
-            del unwrapped_model
+            tokenizer.save_pretrained(args.output_dir)
+            config.save_pretrained(args.output_dir)
+            del unwrapped_model, config
             gc.collect()
 
         if args.task_name == "mnli":
