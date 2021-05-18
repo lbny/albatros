@@ -194,8 +194,8 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             'colsample_bytree': args.feature_fraction,
             'subsample': args.bagging_fraction,
             'num_round': args.num_train_epochs,
-            'lambda': args.lambda,
-            'alpha': args.alpha,
+            'lambda': args.reg_lambda,
+            'alpha': args.reg_alpha,
             'tree_method': tree_method,
             'eval_metric': 'rmse'
         }
