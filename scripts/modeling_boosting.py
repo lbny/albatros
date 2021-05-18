@@ -85,33 +85,39 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
     # Compute embeddings for all sentences in train and validation
     # corpuses and store them in lists
     # TODO train using datasets map function ?
-    def get_sentence_embedding_function(vocab, tokenizer, reduction: str='mean') -> Callable:
-        def embed_sentence(sentence: str) -> torch.Tensor:
+
+    def get_sentence_embedding_function(args, vocab, tokenizer, reduction: str='mean') -> Callable:
+        
+        def glove_embed(sentence: str) -> torch.Tensor:
             """Embed a sentence using provided vocabulary"""
             if reduction == 'mean':
                 return torch.mean(vocab.get_vecs_by_tokens(tokenizer(sentence)), axis=0).detach().cpu().numpy()
             elif reduction == 'sum':
                 return torch.sum(vocab.get_vecs_by_tokens(tokenizer(sentence)), axis=0).detach().cpu().numpy()
+        
+        if args.embeddings == 'glove':
+            embed_sentence = glove_embed
+
         return embed_sentence
 
     pandarallel.initialize(nb_workers=8, progress_bar=True)
     #print(raw_datasets['train'][sentence1_key])
     train_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['train'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist())
+        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
     valid_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['validation'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist())
+        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
 
     assert valid_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Validation and train embedding dim mismatch: {valid_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
     if args.test_file:
         test_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(test_dataset['test'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist())
+        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
         assert test_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Test and train embedding dim mismatch: {test_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
 
     if args.inference_file:
         inference_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(inference_dataset['inference'][sentence1_key]).parallel_apply(
-        get_sentence_embedding_function(vocab, tokenizer)).tolist())
+        get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
         assert inference_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Inference and train embedding dim mismatch: {inference_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
     # Training
@@ -124,6 +130,12 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
         parameters: Dict = {
             'objective': 'regression',
             'learning_rate': args.learning_rate,
+            'num_leaves': args.num_leaves,
+            'max_depth': args.max_depth,
+            'min_data_in_leaf': args.min_data_in_leaf,
+            'feature_fraction': args.feature_fraction,
+            'bagging_fraction': args.bagging_fraction,
+            'num_iterations': args.num_iterations,
             'metric': 'rmse'
         }
 

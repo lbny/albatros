@@ -116,6 +116,21 @@ def parse_args():
         "--embeddings_dim", type=int, default=300, help="Dimension of the pretrained embeddings (only in boosting, custom NN or linear mode)."
     )
     parser.add_argument(
+        "--bagging_fraction", type=float, default=1, help="Sampling rate of rows in boosting."
+    )
+    parser.add_argument(
+        "--feature_fraction", type=float, default=1, help="Sampling rate of columns in boosting."
+    )
+    parser.add_argument(
+        "--min_data_in_leaf", type=int, default=31, help="Minimum rows to create new leaf."
+    )
+    parser.add_argument(
+        "--max_depth", type=int, default=-1, help="Maximum depth of trees."
+    )
+    parser.add_argument(
+        "--num_iterations", type=int, default=100, help="Number of iterations in boosting."
+    )
+    parser.add_argument(
         "--max_length",
         type=int,
         default=128,
