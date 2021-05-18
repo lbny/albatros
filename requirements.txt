@@ -6,3 +6,4 @@ wandb
 pandas
 scikit-learn
 nlpaug
+pandarallel

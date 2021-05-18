@@ -5,6 +5,7 @@ from typing import Dict
 import os.path as osp
 import logging
 import math
+import json
 import os
 import gc
 import random
@@ -309,7 +310,12 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                         'tag': wandb_tag
                     })
 
-        if args.output_dir is not None:
+                if args.eval_metrics_file:
+                    with open(osp.join(args.output_dir, '_'.join([args.eval_metrics_file, str(epoch)]) + '.json'), 'w') as output_stream:
+                        json.dump({'rmse': float(eval_loss)}, output_stream)
+                        output_stream.close()
+
+        if args.output_dir is not None and args.save_model:
             accelerator.wait_for_everyone()
             unwrapped_model = accelerator.unwrap_model(model)
             unwrapped_model.save_pretrained(args.output_dir, save_function=accelerator.save)

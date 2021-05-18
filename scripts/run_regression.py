@@ -104,7 +104,7 @@ def parse_args():
         "--n_folds", type=int, default=1, help="Number of folds to train models on."
     )
     parser.add_argument(
-        "--run_name", type=str, default='', help="Number of folds to train models on."
+        "--run_name", type=str, default='', help="Name appedned to models."
     )
     parser.add_argument(
         "--tokenizer", type=str, default='basic_english', help="Tokenizer (only in boosting, custom NN or linear mode)."
@@ -198,6 +198,12 @@ def parse_args():
     )
     parser.add_argument(
         "--num_warmup_steps", type=int, default=0, help="Number of steps for the warmup in the lr scheduler."
+    )
+    parser.add_argument(
+        "--eval_metrics_file", type=str, default=None, help="Name of the file containing the metrics, one per epoch."
+    )
+    parser.add_argument(
+        "--save_model", action='store_true', help="Do save model."
     )
     parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
     parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
