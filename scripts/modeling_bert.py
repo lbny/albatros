@@ -257,7 +257,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     wandb.log({
                         "epoch": epoch,
                         "step": step,
-                        "train_rmse_loss": loss.sqrt(),
+                        "train_loss": loss,
                         "lr_0": optimizer.param_groups[0]['lr'],
                         "lr_1": optimizer.param_groups[1]['lr'],
                         "tag": wandb_tag
@@ -300,9 +300,9 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     del loss, outputs, batch
                     gc.collect()
 
-                
-                eval_loss = np.sqrt(np.mean(eval_loss))    
-                logger.info(f'Total Validation RMSE loss : {eval_loss}')
+                if is_regression:
+                    eval_loss = np.sqrt(np.mean(eval_loss))    
+                    logger.info(f'Total Validation RMSE loss : {eval_loss}')
 
                 if args.wandb_project:
                     wandb.log({
