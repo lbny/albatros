@@ -326,7 +326,7 @@ def main():
         column_names = datasets["validation"].column_names
 
     if data_args.text_column:
-        text_column_name = args.text_column
+        text_column_name = data_args.text_column
     else:
         text_column_name = "text" if "text" in column_names else column_names[0]
 
