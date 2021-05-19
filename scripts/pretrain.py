@@ -115,6 +115,10 @@ class DataTrainingArguments:
         default=None,
         metadata={"help": "An optional input evaluation data file to evaluate the perplexity on (a text file)."},
     )
+    text_column: Optional[str] = field(
+        default=None,
+        metadata={"help": "The name of the column containing the texts."},
+    )
     overwrite_cache: bool = field(
         default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
@@ -320,7 +324,11 @@ def main():
         column_names = datasets["train"].column_names
     else:
         column_names = datasets["validation"].column_names
-    text_column_name = "text" if "text" in column_names else column_names[0]
+
+    if training_args.text_column:
+        text_column_name = args.text_column
+    else:
+        text_column_name = "text" if "text" in column_names else column_names[0]
 
     if data_args.max_seq_length is None:
         max_seq_length = tokenizer.model_max_length

@@ -387,7 +387,6 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                 #    torch.cat(predictions).cpu().numpy()
                 #)
 
-    
-        del model
+        output['model'] = model
         gc.collect()
         return output
