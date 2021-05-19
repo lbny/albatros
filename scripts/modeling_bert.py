@@ -278,8 +278,9 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                 del loss, outputs, batch
                 gc.collect()
             
-            train_loss = np.sqrt(np.mean(train_loss))
-            logger.info(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
+            if is_regression:
+                    train_loss = np.sqrt(np.mean(train_loss))
+                    logger.info(f'Total Train loss - epoch {epoch} - RMSE {train_loss}')
 
             if args.wandb_project:
                 wandb.log({'epoch': epoch, 'total_train_loss': train_loss, 'tag': wandb_tag})
