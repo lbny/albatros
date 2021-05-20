@@ -23,7 +23,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
     if args.n_regression_bins > 0:
         assert args.n_regression_bins > 1, "Cannot have only 1 bin"
         target_binarizer: KBinsDiscretizer = KBinsDiscretizer(n_bins=args.n_regression_bins, strategy=args.bins_strategy, encode='ordinal')
-        raw_datasets['train']['label'] = target_binarizer.fit_transform(raw_datasets['train']['label'])
+        raw_datasets['train']['label'] = target_binarizer.fit_transform(np.asarray(raw_datasets['train']['label']).reshape(-1, 1))
 
 
     if 'bert' in model_name:
