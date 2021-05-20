@@ -116,6 +116,9 @@ def parse_args():
         "--embeddings_dim", type=int, default=300, help="Dimension of the pretrained embeddings (only in boosting, custom NN or linear mode)."
     )
     parser.add_argument(
+        "--embeddings_cache", type=str, default=None, help="Local folder containing embeddings files."
+    )
+    parser.add_argument(
         "--bagging_fraction", type=float, default=1, help="Sampling rate of rows in boosting."
     )
     parser.add_argument(

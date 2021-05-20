@@ -44,7 +44,7 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
 
     if args.embeddings == 'glove':
         try:
-            vocab = GloVe('6B', vectors_cache='../.vector_cache', dim=args.embeddings_dim)
+            vocab = GloVe('6B', cache=args.embeddings_cache, dim=args.embeddings_dim)
         except:
             vocab = GloVe('6B', dim=args.embeddings_dim)
 
