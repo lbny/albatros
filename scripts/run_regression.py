@@ -109,6 +109,9 @@ def parse_args():
     parser.add_argument(
         "--tokenizer", type=str, default='basic_english', help="Tokenizer (only in boosting, custom NN or linear mode)."
     )
+    
+    # Embeddings
+    # ----------
     parser.add_argument(
         "--embeddings", type=str, default='glove', help="Pretrained embeddings to use (only in boosting, custom NN or linear mode)."
     )
@@ -118,6 +121,9 @@ def parse_args():
     parser.add_argument(
         "--embeddings_cache", type=str, default=None, help="Local folder containing embeddings files."
     )
+    
+    # Tree Boosting
+    # --------------
     parser.add_argument(
         "--bagging_fraction", type=float, default=1, help="Sampling rate of rows in boosting."
     )
@@ -142,6 +148,9 @@ def parse_args():
     parser.add_argument(
         "--reg_lambda", type=float, default=1, help="L2 coef."
     )
+
+    # Bayesian Ridge
+    # --------------
     parser.add_argument(
         "--alpha_1", type=float, default=1e-6, help="Hyper-parameter : shape parameter for the Gamma distribution prior over the alpha parameter."
     )
@@ -157,6 +166,9 @@ def parse_args():
     parser.add_argument(
         "--normalize", action='store_true', help="Hyper-parameter : inverse scale parameter (rate parameter) for the Gamma distribution prior over the lambda parameter."
     )
+    
+    # Tfidf
+    # -----
     parser.add_argument(
         "--sublinear_tf", action='store_true', help="Use sublinear term frequency."
     )
@@ -175,10 +187,14 @@ def parse_args():
     parser.add_argument(
         "--min_df", type=float, default=1, help="Min document frequency to use."
     )
+    
     parser.add_argument(
         "--nb_workers", type=int, default=1, help="Number of workers for parallel processing."
     )
-   
+    parser.add_argument(
+        "--n_regression_bins", type=int, default=0, help="Number of bins to turn regression into multiclass."
+    )
+
     parser.add_argument(
         "--max_length",
         type=int,

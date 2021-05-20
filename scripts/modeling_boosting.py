@@ -264,9 +264,6 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
 
         model.fit(train_samples_embeddings, train_labels)
 
-        valid_preds = model.predict(valid_samples_embeddings)
-        eval_loss = np.sqrt(mean_squared_error(valid_labels, valid_preds))
-
     # Validating
     # ----------
 
