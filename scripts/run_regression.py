@@ -155,6 +155,9 @@ def parse_args():
         "--lambda_2", type=float, default=1e-6, help="Hyper-parameter : inverse scale parameter (rate parameter) for the Gamma distribution prior over the lambda parameter."
     )
     parser.add_argument(
+        "--normalize", action='store_true', help="Hyper-parameter : inverse scale parameter (rate parameter) for the Gamma distribution prior over the lambda parameter."
+    )
+    parser.add_argument(
         "--sublinear_tf", action='store_true', help="Use sublinear term frequency."
     )
     parser.add_argument(

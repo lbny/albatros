@@ -266,7 +266,6 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
 
         valid_preds = model.predict(valid_samples_embeddings)
         eval_loss = np.sqrt(mean_squared_error(valid_labels, valid_preds))
-        print(eval_loss)
 
     # Validating
     # ----------
@@ -276,7 +275,7 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
     eval_loss = np.sqrt(mean_squared_error(valid_labels, valid_preds))
     train_loss = np.sqrt(mean_squared_error(train_labels, train_preds))
     print(f"Eval loss: {eval_loss}")
-    print(f"Eval loss: {train_loss}")
+    print(f"Train loss: {train_loss}")
 
     # Infering
     # --------
