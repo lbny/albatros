@@ -201,9 +201,6 @@ def parse_args():
     parser.add_argument(
         "--nb_workers", type=int, default=1, help="Number of workers for parallel processing."
     )
-    parser.add_argument(
-        "--n_regression_bins", type=int, default=0, help="Number of bins to turn regression into multiclass."
-    )
 
     parser.add_argument(
         "--max_length",
