@@ -221,7 +221,6 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             'gamma': args.min_data_in_leaf,
             'colsample_bytree': args.feature_fraction,
             'subsample': args.bagging_fraction,
-            'num_round': args.num_train_epochs,
             'lambda': args.reg_lambda,
             'alpha': args.reg_alpha,
             'tree_method': tree_method,
@@ -237,7 +236,8 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             params=parameters,
             dtrain=train_data,
             evals=[(train_data, 'train'), (valid_data, 'valid')],
-            callbacks=callbacks
+            callbacks=callbacks,
+            num_boost_round =args.num_train_epochs
         )
 
         train_samples_embeddings = xgb.DMatrix(np.asarray(train_samples_embeddings))
@@ -292,8 +292,8 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
     if args.eval_metrics_file:        
 
         with open(osp.join(args.output_dir, '_'.join([args.eval_metrics_file, "0"]) + '.json'), 'w') as output_stream:
-            json.dump({'validation_rmse_loss': float(eval_loss),
-            'train_rmse_loss': float(train_loss)}, output_stream)
+            json.dump({'validation_loss': float(eval_loss),
+            'train_loss': float(train_loss)}, output_stream)
             output_stream.close()
 
     return output
