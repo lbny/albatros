@@ -27,7 +27,7 @@ from scipy.sparse import csr_matrix
 import datasets
 import torch
 from torchtext.data import get_tokenizer
-from torchtext.vocab import GloVe
+from torchtext.vocab import GloVe, FastText, CharNGram
 
 from wandb.xgboost import wandb_callback
 
@@ -49,6 +49,16 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             vocab = GloVe('6B', cache=args.embeddings_cache, dim=args.embeddings_dim)
         except:
             vocab = GloVe('6B', dim=args.embeddings_dim)
+    elif args.embeddings == 'charngram':
+        try:
+            vocab = CharNGram(cache=args.embeddings_cache)
+        except:
+            vocab = CharNGram()
+    elif args.embeddings == 'fasttext':
+        try:
+            vocab = FastText(cache=args.embeddings_cache)
+        except:
+            vocab = FastText()
 
     # Text column
     # -----------
@@ -230,6 +240,7 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             callbacks=callbacks
         )
 
+        valid_samples_embeddings = xgb.DMatrix(np.asarray(valid_samples_embeddings))
 
     elif args.model_name_or_path == 'linear_bayesian_ridge':
         
