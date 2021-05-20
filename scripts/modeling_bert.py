@@ -14,6 +14,8 @@ import wandb
 import numpy as np
 import torch
 
+from sklearn.preprocessing import KBinsDiscretizer
+
 import datasets
 from datasets import load_dataset, load_metric
 from torch.utils.data.dataloader import DataLoader
@@ -37,7 +39,7 @@ from transformers import (
 from utils import format_filepath
 
 def train_one_bert(raw_datasets: datasets.Dataset, args: Dict, logger, 
-test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, accelerator=None, wandb_tag: str=''):
+test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, accelerator=None, wandb_tag: str='', target_binarizer: KBinsDiscretizer=None):
         """
         raw_datasets (datasets.Dataset): The main dataset containing two splits : 'train' and 'validation'
         """
@@ -293,7 +295,12 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     predictions = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
                     loss = outputs.loss
                     loss = loss / args.gradient_accumulation_steps
-                    eval_loss.append(loss.detach().cpu().numpy())
+
+                    if args.n_regression_bins > 0:
+                        eval_loss.append((target_binarizer.inverse_transform(predictions.detach()) - batch['label'].detach()) ** 2)
+                    else:
+                        eval_loss.append(loss.detach().cpu().numpy())
+
                     if args.print_loss_every_steps:
                         if step % args.print_loss_every_steps == 0:
                             logger.info(f"Validation Loss at {step}: {np.sqrt(np.mean(eval_loss[-args.print_loss_every_steps:]))}")
@@ -301,6 +308,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     gc.collect()
 
                 if is_regression:
+                    
                     eval_loss = np.sqrt(np.mean(eval_loss))    
                     logger.info(f'Total Validation RMSE loss : {eval_loss}')
 
@@ -349,12 +357,15 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
             with torch.no_grad():
                 for step, batch in enumerate(test_dataloader):
                     outputs = model(**batch)
-                    y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                    y_preds = outputs.logits.argmax(dim=-1).detach().cpu() if not is_regression else outputs.logits.squeeze().detach().cpu()
                     # in case batch size is 1
                     if len(y_preds.size()) == 0:
                         y_preds = y_preds.view(1)
 
-                    predictions.append(y_preds.detach())
+                    if args.n_regression_bins > 0:
+                        y_preds = target_binarizer.inverse_transform(y_preds)
+
+                    predictions.append(y_preds)
                     del outputs, y_preds
                     gc.collect()
 
@@ -371,12 +382,15 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
             with torch.no_grad():
                 for step, batch in enumerate(inference_dataloader):
                     outputs = model(**batch)
-                    y_preds = outputs.logits.argmax(dim=-1) if not is_regression else outputs.logits.squeeze()
+                    y_preds = outputs.logits.argmax(dim=-1).detach().cpu() if not is_regression else outputs.logits.squeeze().detach().cpu()
                     # in case batch size is 1
                     if len(y_preds.size()) == 0:
                         y_preds = y_preds.view(1)
 
-                    predictions.append(y_preds.detach())
+                    if args.n_regression_bins > 0:
+                        y_preds = target_binarizer.inverse_transform(y_preds)
+
+                    predictions.append(y_preds)
                     del outputs, y_preds
                     gc.collect()
 
