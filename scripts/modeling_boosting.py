@@ -29,6 +29,8 @@ import torch
 from torchtext.data import get_tokenizer
 from torchtext.vocab import GloVe
 
+from wandb.xgboost import wandb_callback
+
 def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger, 
     test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, accelerator=None, wandb_tag: str=''):
     """
@@ -180,10 +182,16 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             'metric': 'rmse'
         }
 
+        callbacks: List = []
+
+        if args.wandb_project is not None:
+            callbacks.append(wandb_callback())
+
         model = lgbm.train(
             parameters,
             train_data,
             valid_sets=valid_data,
+            callbacks=callbacks
         )
 
     elif args.model_name_or_path == 'xgboost':
@@ -210,10 +218,16 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             'eval_metric': 'rmse'
         }
 
+        callbacks: List = []
+
+        if args.wandb_project is not None:
+            callbacks.append(wandb_callback())
+
         model = xgb.train(
             params=parameters,
             dtrain=train_data,
-            evals=[('train', train_data), ('valid', valid_data)],
+            evals=[(train_data, 'train'), (valid_data, 'valid')],
+            callbacks=callbacks
         )
 
 
