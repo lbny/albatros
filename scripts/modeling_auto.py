@@ -6,6 +6,8 @@ from typing import Dict
 
 from sklearn.preprocessing import KBinsDiscretizer
 
+import numpy as np
+
 import datasets
 
 from modeling_bert import train_one_bert
