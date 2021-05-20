@@ -125,7 +125,10 @@ def parse_args():
         "--feature_fraction", type=float, default=1, help="Sampling rate of columns in boosting."
     )
     parser.add_argument(
-        "--min_data_in_leaf", type=int, default=31, help="Minimum rows to create new leaf."
+        "--num_leaves", type=float, default=31, help="Number of leaves."
+    )
+    parser.add_argument(
+        "--min_data_in_leaf", type=int, default=20, help="Minimum rows to create new leaf."
     )
     parser.add_argument(
         "--max_depth", type=int, default=-1, help="Maximum depth of trees."

@@ -163,10 +163,15 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
         train_data: lgbm.Dataset = lgbm.Dataset(np.asarray(train_samples_embeddings), label=train_labels)
         valid_data: lgbm.Dataset = lgbm.Dataset(np.asarray(valid_samples_embeddings), label=valid_labels)
 
+        if args.num_leaves == -1:
+            num_leaves: int = 2 ** args.max_depth
+        else:
+            num_leaves: int = args.num_leaves
+
         parameters: Dict = {
             'objective': 'regression',
             'learning_rate': args.learning_rate,
-            'num_leaves': args.num_leaves,
+            'num_leaves': num_leaves,
             'max_depth': args.max_depth,
             'min_data_in_leaf': args.min_data_in_leaf,
             'feature_fraction': args.feature_fraction,
