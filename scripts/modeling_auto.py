@@ -17,7 +17,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
     if 'bert' in model_name:
         return train_one_bert(raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator, wandb_tag=wandb_tag)
 
-    elif 'gb' in model_name:
+    elif 'gb' in model_name or 'linear' in model_name:
         return train_one_lightgbm(raw_datasets, args, logger, test_dataset, inference_dataset, accelerator=accelerator, wandb_tag=wandb_tag)
     
     else:
