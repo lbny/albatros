@@ -12,20 +12,12 @@ import datasets
 
 from modeling_bert import train_one_bert
 
-def quantize(scalar_series, n_bins: int, strategy: str='uniform'):
-    """Discretize the continuous variable"""
-    
-    
-    pass
+
 def train_one_model(model_name: str, raw_datasets: datasets.Dataset, args: Dict, logger, 
 test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, accelerator=None, wandb_tag: str=''):
     """
     Front API to train a model
     """
-    if args.n_regression_bins > 0:
-        assert args.n_regression_bins > 1, "Cannot have only 1 bin"
-        target_binarizer: KBinsDiscretizer = KBinsDiscretizer(n_bins=args.n_regression_bins, strategy=args.bins_strategy, encode='ordinal')
-        raw_datasets['train']['label'] = target_binarizer.fit_transform(np.asarray(raw_datasets['train']['label']).reshape(-1, 1))
 
 
     if 'bert' in model_name:

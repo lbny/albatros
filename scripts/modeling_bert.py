@@ -141,6 +141,15 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
         train_dataset = processed_datasets["train"]
         eval_dataset = processed_datasets["validation_matched" if args.task_name == "mnli" else "validation"]
 
+        def binarize_target(examples):
+            examples['label'] = target_binarizer.fit_transform(np.asarray(examples['label']).reshape(-1, 1))
+            return examples
+
+        if args.n_regression_bins > 0:
+            assert args.n_regression_bins > 1, "Cannot have only 1 bin"
+            target_binarizer: KBinsDiscretizer = KBinsDiscretizer(n_bins=args.n_regression_bins, strategy=args.bins_strategy, encode='ordinal')
+            train_dataset = train_dataset.map(binarize_target, batched=True)
+
         if args.test_file:
             test_dataset = test_dataset.map(
                 preprocess_function, batched=True, remove_columns=test_dataset["test"].column_names
