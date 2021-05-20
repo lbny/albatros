@@ -187,6 +187,16 @@ def parse_args():
     parser.add_argument(
         "--min_df", type=float, default=1, help="Min document frequency to use."
     )
+
+    # Discretize target
+    # -----------------
+
+    parser.add_argument(
+        "--n_regression_bins", type=int, default=0, help="Number of bins for regression discretization."
+    )
+    parser.add_argument(
+        "--bins_strategy", type=str, default="quantile", help="Strategy for target discretization."
+    )
     
     parser.add_argument(
         "--nb_workers", type=int, default=1, help="Number of workers for parallel processing."
