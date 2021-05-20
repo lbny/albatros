@@ -142,7 +142,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
         eval_dataset = processed_datasets["validation_matched" if args.task_name == "mnli" else "validation"]
 
         def binarize_target(examples):
-            examples['label'] = target_binarizer.fit_transform(np.asarray(examples['label']).reshape(-1, 1))
+            examples['labels'] = target_binarizer.fit_transform(np.asarray(examples['labels']).reshape(-1, 1))
             return examples
 
         if args.n_regression_bins > 0:
