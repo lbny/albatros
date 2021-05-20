@@ -240,6 +240,7 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
             callbacks=callbacks
         )
 
+        train_samples_embeddings = xgb.DMatrix(np.asarray(train_samples_embeddings))
         valid_samples_embeddings = xgb.DMatrix(np.asarray(valid_samples_embeddings))
 
     elif args.model_name_or_path == 'linear_bayesian_ridge':
