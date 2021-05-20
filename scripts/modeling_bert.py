@@ -142,7 +142,10 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
         eval_dataset = processed_datasets["validation_matched" if args.task_name == "mnli" else "validation"]
 
         def binarize_target(examples):
-            examples['labels'] = target_binarizer.fit_transform(np.asarray(examples['labels']).reshape(-1, 1))
+            examples['labels'] = np.asarray(
+                target_binarizer.fit_transform(np.asarray(examples['labels']).reshape(-1, 1)),
+                dtype=np.uint64
+            )
             return examples
 
         if args.n_regression_bins > 0:
@@ -306,7 +309,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     loss = loss / args.gradient_accumulation_steps
 
                     if args.n_regression_bins > 0:
-                        eval_loss.append((target_binarizer.inverse_transform(predictions.detach().cpu()) - batch['label'].detach().cpu()) ** 2)
+                        eval_loss.append((target_binarizer.inverse_transform(np.asarray(predictions.detach().cpu())).reshape(-1, 1) - batch['label'].detach().cpu()) ** 2)
                     else:
                         eval_loss.append(loss.detach().cpu().numpy())
 
@@ -372,7 +375,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                         y_preds = y_preds.view(1)
 
                     if args.n_regression_bins > 0:
-                        y_preds = target_binarizer.inverse_transform(y_preds)
+                        y_preds = target_binarizer.inverse_transform(np.asarray(y_preds).reshape(-1, 1))
 
                     predictions.append(y_preds)
                     del outputs, y_preds
@@ -397,7 +400,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                         y_preds = y_preds.view(1)
 
                     if args.n_regression_bins > 0:
-                        y_preds = target_binarizer.inverse_transform(y_preds)
+                        y_preds = target_binarizer.inverse_transform(np.asarray(y_preds).reshape(-1, 1))
 
                     predictions.append(y_preds)
                     del outputs, y_preds
