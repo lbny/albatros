@@ -306,7 +306,7 @@ test_dataset: datasets.Dataset=None, inference_dataset: datasets.Dataset=None, a
                     loss = loss / args.gradient_accumulation_steps
 
                     if args.n_regression_bins > 0:
-                        eval_loss.append((target_binarizer.inverse_transform(predictions.detach()) - batch['label'].detach()) ** 2)
+                        eval_loss.append((target_binarizer.inverse_transform(predictions.detach().cpu()) - batch['label'].detach().cpu()) ** 2)
                     else:
                         eval_loss.append(loss.detach().cpu().numpy())
 
