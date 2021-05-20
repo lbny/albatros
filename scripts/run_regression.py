@@ -166,6 +166,9 @@ def parse_args():
     parser.add_argument(
         "--min_df", type=float, default=1, help="Min document frequency to use."
     )
+    parser.add_argument(
+        "--nb_workers", type=int, default=1, help="Number of workers for parallel processing."
+    )
    
     parser.add_argument(
         "--max_length",

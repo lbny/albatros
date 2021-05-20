@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 
 from pandarallel import pandarallel
+from tqdm import tqdm
+tqdm.pandas()
 
 import lightgbm as lgbm
 import xgboost as xgb
@@ -130,25 +132,28 @@ def train_one_lightgbm(raw_datasets: datasets.Dataset, args: Dict, logger,
 
 
     else:
+        if args.nb_workers > 1:
+            pandarallel.initialize(nb_workers=args.nb_workers, progress_bar=True)
 
-        pandarallel.initialize(nb_workers=8, progress_bar=True)
+        def apply(sample_df: pd.Series, fun: Callable, nb_workers: int=1) -> pd.Series:
+            """Use different functions depending on number of workers"""
+            if nb_workers > 1:
+                return sample_df.paralllel_apply(fun)
+            return sample_df.progress_apply(fun)
+
         #print(raw_datasets['train'][sentence1_key])
-        train_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['train'][sentence1_key]).parallel_apply(
-            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
-        valid_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(raw_datasets['validation'][sentence1_key]).parallel_apply(
-            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+        train_samples_embeddings: List[torch.Tensor] = np.asarray(apply(pd.Series(raw_datasets['train'][sentence1_key]), get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+        valid_samples_embeddings: List[torch.Tensor] = np.asarray(apply(pd.Series(raw_datasets['validation'][sentence1_key]), get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
 
         assert valid_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Validation and train embedding dim mismatch: {valid_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
         if args.test_file:
-            test_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(test_dataset['test'][sentence1_key]).parallel_apply(
-            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+            test_samples_embeddings: List[torch.Tensor] = np.asarray(apply(pd.Series(test_dataset['test'][sentence1_key]), get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
             assert test_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Test and train embedding dim mismatch: {test_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
 
         if args.inference_file:
-            inference_samples_embeddings: List[torch.Tensor] = np.asarray(pd.Series(inference_dataset['inference'][sentence1_key]).parallel_apply(
-            get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
+            inference_samples_embeddings: List[torch.Tensor] = np.asarray(apply(pd.Series(inference_dataset['inference'][sentence1_key]), get_sentence_embedding_function(args, vocab, tokenizer)).tolist())
             assert inference_samples_embeddings.shape[1] == train_samples_embeddings.shape[1], f"Inference and train embedding dim mismatch: {inference_samples_embeddings.shape[1]} and {train_samples_embeddings.shape[1]}"
 
     # Training
